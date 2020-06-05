@@ -24,7 +24,8 @@ int main( int argc, char *argv[] )
    //Note: it will be easier to assume each particle has the same mass 
    //randomly distributed the particles' positions and velocities as initial conditions
    //Note: Using the Virial theorem  to give an estimate on the velocities.
-   //set the 3D array of potential u
+   //set the 3D array of potential u 
+   //set the 3D*3 array of force 
    //initialize the potential
 
 // define the 3D interpolating function
@@ -41,7 +42,9 @@ int main( int argc, char *argv[] )
    // 2. Cloud-In-Cell (CIC)
    // constant mass distribution
    // Let the position of the particle be xp, the position of the grid be xi.
-   // If (xi-xp) and (yi-yp) and (zi-zp) are all smaller and equal than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
+   // If (xi-xp) or (yi-yp) or (zi-zp) are smaller and equal than dx, dy, dz, then set the density of i grid to be 
+      mp(1-|xi-xp|/dx)(1-|yi-yp|/dy)(1-|zi-zp|/dz)/(dxdydz)
+   
     
 3
    
