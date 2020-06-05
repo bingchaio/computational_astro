@@ -15,5 +15,8 @@ int main(){
 		printf("%.3f \t %e\n", x, Phi_x[i]);
 	}
 	
+	Eigen::FFT<double> fft;
+	fft.fwd(Phi_p, Phi_x);
+
 	return 0;
 }
