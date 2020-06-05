@@ -35,13 +35,13 @@ int main( int argc, char *argv[] )
    // delta function mass distribution
    // Let the position of the particle be xp, the position of the grid be xi.
    // If (xi-xp) and (yi-yp) and (zi-zp) are all smaller and equal than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
+   // else set the density to zero.
    // And sum over all the particles
 
    // 2. Cloud-In-Cell (CIC)
    // constant mass distribution
    // Let the position of the particle be xp, the position of the grid be xi.
-   // Set the 3d width of the distribution as delta x,y,z.
-   // 
+   // If (xi-xp) and (yi-yp) and (zi-zp) are all smaller and equal than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
     
 3
    
