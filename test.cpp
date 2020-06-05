@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /*
  * ==============
  * PARTICLE MESH
@@ -27,7 +26,7 @@ int main(){
 	double *vx = new double [n];
 	double *vy = new double [n];
 	double *vz = new double [n];
-	double ***U = new double ** [N]; // Dirichlet B.C.
+	double ***U = new double ** [Nx]; // Dirichlet B.C.
 	
 
 	srand(time(NULL));
@@ -40,7 +39,9 @@ int main(){
 		double v0 = sqrt(G*m/r0);
 	}
 	for(int i = 0 ; i<Nx ; i++){
+		U[i] = new double *[Ny];
 		for(int j = 0 ; j<Ny ; j++){
+			U[i][j] = new double [Nz];
 			for(int k = 0 ; k<Nz ; k++){
 				U[i][j][k] = 0.;
 			}
@@ -49,28 +50,4 @@ int main(){
 	
 
 	return 0;
-	
-=======
-#include<iostream>
-#include<cstdlib>
-#include<cmath>
-#include"Eigen/Dense"
-#include"unsupported/Eigen/FFT"
-
-int main(){
-	int N = 100;
-	double dx = 0.1;
-	double *Phi_x = new double [N];
-	double *Phi_p = new double [N];
-	for(int i = 0 ; i<N ; i++){
-		double x = i*dx;
-		Phi_x[i] = sin(x);
-		printf("%.3f \t %e\n", x, Phi_x[i]);
-	}
-	
-	Eigen::FFT<double> fft;
-	fft.fwd(Phi_p, Phi_x);
-
-	return 0;
->>>>>>> 1986623cc98969e8e0e87e1d58271abf349a2fc5
 }
