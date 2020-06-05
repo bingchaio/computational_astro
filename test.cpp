@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /*
  * ==============
  * PARTICLE MESH
@@ -49,4 +50,27 @@ int main(){
 
 	return 0;
 	
+=======
+#include<iostream>
+#include<cstdlib>
+#include<cmath>
+#include"Eigen/Dense"
+#include"unsupported/Eigen/FFT"
+
+int main(){
+	int N = 100;
+	double dx = 0.1;
+	double *Phi_x = new double [N];
+	double *Phi_p = new double [N];
+	for(int i = 0 ; i<N ; i++){
+		double x = i*dx;
+		Phi_x[i] = sin(x);
+		printf("%.3f \t %e\n", x, Phi_x[i]);
+	}
+	
+	Eigen::FFT<double> fft;
+	fft.fwd(Phi_p, Phi_x);
+
+	return 0;
+>>>>>>> 1986623cc98969e8e0e87e1d58271abf349a2fc5
 }
