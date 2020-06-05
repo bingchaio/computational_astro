@@ -24,8 +24,12 @@ int main( int argc, char *argv[] )
    //Note: it will be easier to assume each particle has the same mass 
    //randomly distributed the particles' positions and velocities as initial conditions
    //Note: Using the Virial theorem  to give an estimate on the velocities.
+
+   //set the 3D array of potential u 
+   //set the 3D*3 array of force 
+=======
    //set the 3D array of potential u
-   //initialize the potential
+
 
 // define the 3D interpolating function
 
@@ -34,15 +38,29 @@ int main( int argc, char *argv[] )
    // 1. Nearest-Grid-Point (NGP)
    // delta function mass distribution
    // Let the position of the particle be xp, the position of the grid be xi.
-   // If (xi-xp) and (yi-yp) and (zi-zp) are all smaller than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
+
+   // If |xi-xp| and |yi-yp| and |zi-zp| are all smaller and equal than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
+   // else set the density to zero.
    // And sum over all the particles
 
    // 2. Cloud-In-Cell (CIC)
    // constant mass distribution
    // Let the position of the particle be xp, the position of the grid be xi.
-   // Set the 3d width of the distribution as delta x,y,z.
-    
 
+   // If |xi-xp| and |yi-yp| and |zi-zp| are smaller and equal than dx, dy, dz, then set the density of i grid to be 
+   // mp(1-|xi-xp|/dx)(1-|yi-yp|/dy)(1-|zi-zp|/dz)/(dxdydz)
+   // else set the density to zero.
+   // And sum over all the particles
+
+   // 3. Triangular-Shaped-Cloud (TSC) distribution
+   // triangular mass distribution
+   // Let the position of the particle be xp, the position of the grid be xi.
+   // If (xi-xp) and (yi-yp) and (zi-zp) are smaller and equal than 3dx/2, 3dy/2, 3dz/2, then set the density of i grid to be 
+   // mpf(x)f(y)f(z)/(dxdydz), which f(x) = 3/4-(xi-xp)^2/dx^2 if |xi-xp| <= dx/2 ; = 1/2(3/2-|xi-xp|/dx)^2 if dx/2 < |xi-xp| <= 3dx/2
+   // else set the density to zero.
+   // And sum over all the particles
+   
+ 
    
 //update
    while (cri>=1.0e-14 || t/dt>=1.0e6)
