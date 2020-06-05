@@ -1,34 +1,90 @@
-/*
- * ==============
- * PARTICLE MESH
- * ==============
- */
+// ==============
+// PARTICLE MESH
+// ==============
 
 #include<iostream>
 #include<cstdlib>
 #include<cmath>
 #include<ctime>
 
+int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
+double G = 1.0;
+double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
+int Nx = 3, Ny = 3, Nz = 3; // # of grid points
+double dx = Lx/(Nx-1), dy = Ly/(Ny-1), dz = Lz/(Nz-1);
+int n = 1000; // # of particles
+double m = 1.0; // particle mass
+
+void mesh(double ***rho, double *x, double *y, double *z, int mode){
+    int I, J, K;
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                rho[i][j][k] = 0.;
+            }
+        }
+    }
+    if(mode==0){
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5)/dx);
+            J = int((y[p]+0.5)/dy);
+            K = int((z[p]+0.5)/dz);
+            if(abs(x[p]-I*dx)>abs(x[p]-(I+1)*dx)) I++;
+            if(abs(x[p]-J*dy)>abs(x[p]-(J+1)*dy)) J++;
+            if(abs(x[p]-K*dz)>abs(x[p]-(K+1)*dz)) K++;
+            rho[I][J][K] += m/(dx*dy*dz);
+        }
+    }else if(mode==1){
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5)/dx);
+            J = int((y[p]+0.5)/dy);
+            K = int((z[p]+0.5)/dz);
+            for(int i = I ; i<=I+1 ; i++){
+                for(int j = J ; j<=J+1 ; j++){
+                    for(int k = K ; k<=K+1 ; k++){
+                        rho[i][j][k] += m*(1.0-abs(x[p]+0.5-i*dx)/dx)*(1.0-abs(y[p]+0.5-j*dy)/dy)*(1.0-abs(z[p]+0.5-k*dz)/dz)/(dx*dy*dz);
+                    }
+                }
+            }
+        }
+    }else if(mode==2){
+        double fx, fy, fz;
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5+.5*dx)/dx);
+            J = int((y[p]+0.5+.5*dy)/dy);
+            K = int((z[p]+0.5+.5*dz)/dz);
+            for(int i = I-1 ; i<=I+1 ; i++){
+                if(i==I) fx = 0.75 - pow( x[p]+0.5-i*dx , 2 ) / pow(dx,2);
+                else fx = 0.5 * pow( 1.5-abs(x[p]+0.5-i*dx)/dx , 2);
+                for(int j = J-1 ; j<=J+1 ; j++){
+                    if(j==J) fy = 0.75 - pow( y[p]+0.5-j*dy , 2 ) / pow(dy,2);
+                    else fy = 0.5 * pow( 1.5-abs(y[p]+0.5-j*dy)/dy , 2);
+                    for(int k = K-1 ; k<=K+1 ; k++){
+                        if(k==K) fz = 0.75 - pow( z[p]+0.5-k*dz , 2 ) / pow(dz,2);
+                        else fz = 0.5 * pow( 1.5-abs(z[p]+0.5-k*dz)/dz , 2);
+                        rho[i][j][k] += m*fx*fy*fz/(dx*dy*dz);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 int main(){
 	/* Variables */
-	double G = 1.0;
-	double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-	int Nx = 16, Ny = 16, Nz = 16; // # of grid points
-	double dx = Lx/(Nx-1), dy = Ly/(Ny-1), dz = Lz/(Nz-1);
-	double t = 0.;
-	double dt = 0.1; // time step
-	int n = 1000; // # of particles
-	double m = 1.0; // particle mass
-	double PDx = 0.2, PDy = 0.2, PDz = 0.2;
-	double *x = new double [n];
-	double *y = new double [n];
-	double *z = new double [n];
-	double *vx = new double [n];
-	double *vy = new double [n];
-	double *vz = new double [n];
-	double ***U = new double ** [Nx]; // Dirichlet B.C.
-	
-
+    double t = 0.;
+    double dt = 0.1; // time step
+    double PDx = 0.2, PDy = 0.2, PDz = 0.2;
+    double *x = new double [n];
+    double *y = new double [n];
+    double *z = new double [n];
+    double *vx = new double [n];
+    double *vy = new double [n];
+    double *vz = new double [n];
+    double ***rho = new double ** [Nx]; // mass density
+    double ***U = new double ** [Nx]; // Dirichlet B.C.
+    
 	srand(time(NULL));
 	/* Initialization */
 	for(int i = 0 ; i<n ; i++){
@@ -37,17 +93,50 @@ int main(){
 		z[i] = Lz * .5*PDz*(rand()/(double)RAND_MAX-0.5);
 		double r0 = pow(PDx,2) + pow(PDy,2) + pow(PDz,2);
 		double v0 = sqrt(G*m/r0);
+		vx[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
+		vy[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
+		vz[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
 	}
 	for(int i = 0 ; i<Nx ; i++){
+		rho[i] = new double *[Ny];
 		U[i] = new double *[Ny];
 		for(int j = 0 ; j<Ny ; j++){
+			rho[i][j] = new double [Nz];
 			U[i][j] = new double [Nz];
 			for(int k = 0 ; k<Nz ; k++){
 				U[i][j][k] = 0.;
 			}
 		}
 	}
-	
+    
+    double M = 0;
+    mesh(rho,x,y,z,0);
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
+    mesh(rho,x,y,z,1);
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
+    mesh(rho,x,y,z,2);
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
 
 	return 0;
 }
