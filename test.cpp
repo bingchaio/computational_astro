@@ -109,7 +109,7 @@ int main(){
 		}
 	}
     
-    double M = 0;
+    double M = 0; // total mass
     mesh(rho,x,y,z,0);
     for(int i = 0 ; i<Nx ; i++){
         for(int j = 0 ; j<Ny ; j++){
@@ -120,7 +120,8 @@ int main(){
     }
     std::cout << M << std::endl;
     mesh(rho,x,y,z,1);
-    for(int i = 0 ; i<Nx ; i++){
+   	M = 0;
+   	for(int i = 0 ; i<Nx ; i++){
         for(int j = 0 ; j<Ny ; j++){
             for(int k = 0 ; k<Nz ; k++){
                 M += rho[i][j][k]*dx*dy*dz;
@@ -128,7 +129,8 @@ int main(){
         }
     }
     std::cout << M << std::endl;
-    mesh(rho,x,y,z,2);
+	mesh(rho,x,y,z,2);
+	M = 0;
     for(int i = 0 ; i<Nx ; i++){
         for(int j = 0 ; j<Ny ; j++){
             for(int k = 0 ; k<Nz ; k++){
