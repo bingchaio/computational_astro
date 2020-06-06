@@ -9,7 +9,7 @@
 
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode   = 0; //Orbit integration mode. 0: DKD 1:KDK
+int OI_mode   = 0; //Orbit integration mode. 0: DKD 1:KDK 2:RK4
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;
@@ -147,7 +147,7 @@ int main(){
     std::cout << M << std::endl;
     
     //Starting to calculate force on partilces
-    if (OI_mode == 0){
+    if (OI_mode == 0){ //DKD mode
 	for(int i = 0 ; i<n ; i++){
            //drift: update position by 0.5*dt
            x[i] += vx[i]*0.5*dt;
@@ -155,7 +155,7 @@ int main(){
            z[i] += vz[i]*0.5*dt;
 	}
         //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
-	for(int i = 0 ; i<n ; i++){
+	for(int i = 0 ; i<n ; i++){ 
 	    double F_x, F_y, F_z;
 	    Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
 	    vx[i] += F_x/m*dt;
@@ -170,7 +170,7 @@ int main(){
         }
     }
 
-    if (OI_mode == 1){
+    if (OI_mode == 1){//KDK mode
        for(int i = 0 ; i<n ; i++){
 	  //kick
 	  double F_x, F_y, F_z;
@@ -191,11 +191,84 @@ int main(){
 	   Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
 	   vx[i] += 0.5*F_x/m*dt;
            vy[i] += 0.5*F_y/m*dt;
-           vz[i] += 0.5*F_z/m*dt;
+           vz[i] += 0.5*F_z/m;
         }
     }
-	
-	
+    if (OI_mode == 2){//RK4 mode
+       double **kr1 = new double *[n];
+       double **kv1 = new double *[n];
+       double **kr2 = new double *[n];
+       double **kv2 = new double *[n];
+       double **kr3 = new double *[n];
+       double **kv3 = new double *[n];
+       double **kr4 = new double *[n];
+       double **kv4 = new double *[n];
+       
+       for(int i = 0 ; i<n ; i++){
+          kr1[i] = new double [3];
+	  kv1[i] = new double [3];
+	  kr2[i] = new double [3];
+          kv2[i] = new double [3];
+	  kr3[i] = new double [3];
+          kv3[i] = new double [3];
+	  kr4[i] = new double [3];
+          kv4[i] = new double [3];
+	}	  
+       for(int i = 0 ; i<n ; i++){
+          
+          double F_x, F_y, F_z;
+          Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	  kr1[i][0] = vx[i];
+          kr1[i][1] = vy[i];
+	  kr1[i][2] = vy[i];
+          kv1[i][0] = F_x;
+          kv1[i][1] = F_y;
+	  kv1[i][2] = F_z;
+	  kr2[i][0] = kr1[i][0] + kv1[i][0]*0.5*dt;
+          kr2[i][1] = kr1[i][1] + kv1[i][1]*0.5*dt;
+	  kr2[i][2] = kr1[i][1] + kv1[i][1]*0.5*dt;
+
+       }
+       for(int i = 0 ; i<n ; i++){
+          
+          double F_x, F_y, F_z;
+          Get_Force_of_Particle(U,x[i]+kr1[i][0]*0.5*dt,y[i]+kr1[i][1]*0.5*dt,z[i]+kr1[i][2]*0.5*dt,F_x,F_y,F_z);
+          kv2[i][0] = F_x;
+          kv2[i][1] = F_y;
+          kv2[i][2] = F_z;
+	  kr3[i][0] = kr1[i][0] + kv2[i][0]*0.5*dt;
+          kr3[i][1] = kr1[i][1] + kv2[i][1]*0.5*dt;
+	  kr3[i][2] = kr1[i][1] + kv2[i][1]*0.5*dt;
+       }
+       for(int i = 0 ; i<n ; i++){
+
+          double F_x, F_y, F_z;
+          Get_Force_of_Particle(U,x[i]+kr2[i][0]*0.5*dt,y[i]+kr2[i][1]*0.5*dt,z[i]+kr2[i][2]*0.5*dt,F_x,F_y,F_z);
+          kv3[i][0] = F_x;
+          kv3[i][1] = F_y;
+          kv3[i][2] = F_z;
+          kr4[i][0] = kr1[i][0] + kv3[i][0]*dt;
+          kr4[i][1] = kr1[i][1] + kv3[i][1]*dt;
+          kr4[i][2] = kr1[i][1] + kv3[i][1]*dt;
+       }
+       for(int i = 0 ; i<n ; i++){
+
+          double F_x, F_y, F_z;
+          Get_Force_of_Particle(U,x[i]+kr3[i][0]*dt,y[i]+kr3[i][1]*dt,z[i]+kr3[i][2]*dt,F_x,F_y,F_z);
+          kv4[i][0] = F_x;
+          kv4[i][1] = F_y;
+          kv4[i][2] = F_z;
+       }
+       for(int i = 0 ; i<n ; i++){
+	  x[i] += (kr1[i][0]+2.0*kr2[i][0]+2.0*kr3[i][0]+1.0*kr4[i][0])/6.0*dt;
+          y[i] += (kr1[i][1]+2.0*kr2[i][1]+2.0*kr3[i][1]+1.0*kr4[i][1])/6.0*dt;
+          z[i] += (kr1[i][1]+2.0*kr2[i][2]+2.0*kr3[i][2]+1.0*kr4[i][2])/6.0*dt;
+
+	  vx[i] += (kv1[i][0]+2.*kv2[i][0]+2.0*kv3[i][0]+1.0*kv4[i][0])/6.0*dt;
+          vy[i] += (kv1[i][1]+2.*kv2[i][1]+2.0*kv3[i][1]+1.0*kv4[i][1])/6.0*dt;
+          vz[i] += (kv1[i][1]+2.*kv2[i][1]+2.0*kv3[i][1]+1.0*kv4[i][1])/6.0*dt;
+	}
+   }
 	   
 	return 0;
 }
