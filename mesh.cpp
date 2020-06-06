@@ -9,7 +9,7 @@
 
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode   = 0; //Orbit integration mode. 0: KDK 1:DKD
+int OI_mode   = 0; //Orbit integration mode. 0: DKD 1:KDK
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;
@@ -158,9 +158,9 @@ int main(){
 	for(int i = 0 ; i<n ; i++){
 	    double F_x, F_y, F_z;
 	    Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
-	    vx[i] += F_x/m;
-	    vy[i] += F_y/m;
-	    vz[i] += F_z/m;
+	    vx[i] += F_x/m*dt;
+	    vy[i] += F_y/m*dt;
+	    vz[i] += F_z/m*dt;
 	}
 	for(int i = 0 ; i<n ; i++){
            //drift: update position by 0.5*dt
@@ -175,9 +175,9 @@ int main(){
 	  //kick
 	  double F_x, F_y, F_z;
 	  Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
-	  vx[i] += 0.5*F_x/m;
-          vy[i] += 0.5*F_y/m;
-          vz[i] += 0.5*F_z/m;
+	  vx[i] += 0.5*F_x/m*dt;
+          vy[i] += 0.5*F_y/m*dt;
+          vz[i] += 0.5*F_z/m*dt;
 	}
 	//drift: update position by dt
 	for(int i = 0 ; i<n ; i++){
@@ -189,9 +189,9 @@ int main(){
 	   //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
 	   double F_x, F_y, F_z;
 	   Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
-	   vx[i] += 0.5*F_x/m;
-           vy[i] += 0.5*F_y/m;
-           vz[i] += 0.5*F_z/m;
+	   vx[i] += 0.5*F_x/m*dt;
+           vy[i] += 0.5*F_y/m*dt;
+           vz[i] += 0.5*F_z/m*dt;
         }
     }
 	
