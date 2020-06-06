@@ -1,3 +1,4 @@
+
 // ==============
 // PARTICLE MESH
 // ==============
@@ -416,7 +417,7 @@ int main(){
 	
    t += dt;
    }   
-	return 0;
+   return EXIT_SUCCESS;
 }
 
 
