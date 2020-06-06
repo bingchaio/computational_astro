@@ -1,174 +1,290 @@
-#include <cstdio>
-#include <cstdlib>
-#include <omp.h>
-#include <math.h>
+// ==============
+// PARTICLE MESH
+// ==============
 
-//Particle Mesh
+#include<iostream>
+#include<cstdlib>
+#include<cmath>
+#include<ctime>
 
-int main( int argc, char *argv[] )
-{
-// constant      
-   // 3-D computational domain size L (3 real numbers). Assuming a 3D box.
-   // number of equally spaced sampling points in 3D N (3 natural numbers)
-   // time of update dt (real number)
-   // number of particles n (natural number)
-   const double pi = 3.1415926535897932384626433832795; //pi
-   //Note: it will be easier to assume the box has the same length on each side.
+//--------------------------------------------------------mode selection----------------------------------------------
+int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
+int OI_mode   = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4 $:Hermite
 
-// derived constant
-   // spatial resolution d (3 real numbers, length/number of equally sampling points)
+//-----------------------------------------------------------constants-------------------------------------------------
+double G = 1.0; // gravitational constant
+double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
+int Nx = 3, Ny = 3, Nz = 3; // # of grid points
+double dx = Lx/(Nx-1), dy = Ly/(Ny-1), dz = Lz/(Nz-1); // spatial resolution
+int n = 1000; // # of particles
+double m = 1.0; // particle mass
 
-// initial condition
-   //set t = 0.0
-   //set the array of each particle, including its mass, 3D positions and velocities 
-   //Note: it will be easier to assume each particle has the same mass 
-   //randomly distributed the particles' positions and velocities as initial conditions
-   //Note: Using the Virial theorem  to give an estimate on the velocities.
+//----------------------------------------------------------functions------------------------------------------------
+//Particle Force Interpolation Function
+void Get_Force_of_Particle(double ***F, double x, double y, double z, double &F_x, double &F_y, double &F_z);
 
-   //set the 3D array of potential u 
-   //set the 3D*3 array of force 
-=======
-   //set the 3D array of potential u
+//Poisson Solver (FFT)
 
-
-// define the 3D interpolating function
-
-// define the 3D particle mesh function
-   // Note: to get the potential on each grid by assigning a mass distribution function to each particle
-   // 1. Nearest-Grid-Point (NGP)
-   // delta function mass distribution
-   // Let the position of the particle be xp, the position of the grid be xi.
-
-   // If |xi-xp| and |yi-yp| and |zi-zp| are all smaller and equal than dx/2, dy/2, dz/2, then set the density of i grid to be mp/(dxdydz)
-   // else set the density to zero.
-   // And sum over all the particles
-
-   // 2. Cloud-In-Cell (CIC)
-   // constant mass distribution
-   // Let the position of the particle be xp, the position of the grid be xi.
-
-   // If |xi-xp| and |yi-yp| and |zi-zp| are smaller and equal than dx, dy, dz, then set the density of i grid to be 
-   // mp(1-|xi-xp|/dx)(1-|yi-yp|/dy)(1-|zi-zp|/dz)/(dxdydz)
-   // else set the density to zero.
-   // And sum over all the particles
-
-   // 3. Triangular-Shaped-Cloud (TSC) distribution
-   // triangular mass distribution
-   // Let the position of the particle be xp, the position of the grid be xi.
-   // If (xi-xp) and (yi-yp) and (zi-zp) are smaller and equal than 3dx/2, 3dy/2, 3dz/2, then set the density of i grid to be 
-   // mpf(x)f(y)f(z)/(dxdydz), which f(x) = 3/4-(xi-xp)^2/dx^2 if |xi-xp| <= dx/2 ; = 1/2(3/2-|xi-xp|/dx)^2 if dx/2 < |xi-xp| <= 3dx/2
-   // else set the density to zero.
-   // And sum over all the particles
-   
- 
-   
-//update
-   while (cri>=1.0e-14 || t/dt>=1.0e6)
-   {
-	// update using SOR
-	cri = 0.0;
-	if (opt == 0)
-	{
-        #  pragma omp parallel
-        {
-  	    #  pragma omp for collapse (2)
-	    for (int i=2; i<N-1 ;i+=2)
-   	    {
-                for (int j=2; j<N-1 ;j+=2)
-                {
-	            u_in[i][j]     = u[i][j];
-		    u_in[i-1][j-1] = u[i-1][j-1];
-		    u[i][j]        = u[i][j] + dt*( u[i+1][j] + u[i-1][j] 
-                                   + u[i][j+1] + u[i][j-1] - 4.0*u[i][j]-den[i][j]*pow(dx,2.0))/pow(dx,2.0);
-		    u[i-1][j-1]    = u[i-1][j-1] + dt*( u[i][j-1] + u[i-2][j-1] 
-                                   + u[i-1][j] + u[i-1][j-2] - 4.0*u[i-1][j-1]-den[i-1][j-1]*pow(dx,2.0))/pow(dx,2.0);
-		    du[i][j]       = abs(u[i][j]-u_in[i][j])/abs(u[i][j])/dt*pow(dx,2.0);
-		    du[i-1][j-1]   = abs(u[i-1][j-1]-u_in[i-1][j-1])/abs(u[i-1][j-1])/dt*pow(dx,2.0);
-                }
-            }
-	    #  pragma omp for collapse (2)
-	    for (int i=1; i<N-2 ;i+=2)
-   	    {
-                for (int j=2; j<N-1 ;j+=2)
-                {
-	            u_in[i][j]     = u[i][j];
-		    u_in[i+1][j-1] = u[i+1][j-1];
-		    u[i][j]        = u[i][j] + dt*( u[i+1][j] + u[i-1][j] 
-                                   + u[i][j+1] + u[i][j-1] - 4.0*u[i][j]-den[i][j]*pow(dx,2.0))/pow(dx,2.0);
-		    u[i+1][j-1]    = u[i+1][j-1] + dt*( u[i+2][j-1] + u[i][j-1] 
-                                   + u[i+1][j] + u[i+1][j-2] - 4.0*u[i+1][j-1]-den[i+1][j-1]*pow(dx,2.0))/pow(dx,2.0);
-		    du[i][j]       = abs(u[i][j]-u_in[i][j])/abs(u[i][j])/dt*pow(dx,2.0);
-		    du[i+1][j-1]   = abs(u[i+1][j-1]-u_in[i+1][j-1])/abs(u[i+1][j-1])/dt*pow(dx,2.0);
-                }
-            }
-	}
-        }
-	if (opt == 1)
-	{
-	    #  pragma omp parallel for collapse (2)
-	    for (int i=1; i<N-1 ;i++)
-   	    {
-                for (int j=1; j<N-1 ;j++)
-                {
-	            u_in[i][j]     = u[i][j];
-		    u[i][j]        = u[i][j] + dt*( u[i+1][j] + u[i-1][j] 
-                                   + u[i][j+1] + u[i][j-1] - 4.0*u[i][j]-den[i][j]*pow(dx,2.0))/pow(dx,2.0);
-		    du[i][j]       = abs(u[i][j]-u_in[i][j])/abs(u[i][j])/dt*pow(dx,2.0);
-                }
-            }
-	}
-	if (opt == 2)
-	{
-	    for (int i=1; i<N-1 ;i++)
-   	    {
-                for (int j=1; j<N-1 ;j++)
-                {
-	            u_in[i][j]     = u[i][j];
-		    u[i][j]        = u[i][j] + dt*( u[i+1][j] + u[i-1][j] 
-                                   + u[i][j+1] + u[i][j-1] - 4.0*u[i][j]-den[i][j]*pow(dx,2.0))/pow(dx,2.0);
-		    du[i][j]       = abs(u[i][j]-u_in[i][j])/abs(u[i][j])/dt*pow(dx,2.0);
-                }
-            }
-	}
-	for (int i=1; i<N-1 ;i++)
-   	{
-            for (int j=1; j<N-1 ;j++)
-            {
-	        cri += du[i][j];
+//Particle Mesh function
+void mesh(double ***rho, double *x, double *y, double *z, int mode){
+    int I, J, K;
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                rho[i][j][k] = 0.;
             }
         }
-	cri = cri/pow(double(N),2.0);
-        t += dt;
-	count++;
-	if (count%1000 == 0)
-	{
-	     printf("%f %4e\n",t/dt, cri);
-	}
-   }
-   double **du_err;
-   du_err = new double *[N];
-   for (int i=0;i<N;i++)
-   {
-       du_err[i] = new double [N];
-   }
-   for (int i=1; i<N-1 ;i++)
-   {
-       for (int j=1; j<N-1 ;j++)
-       {
-	   du_err[i][j] = abs(u[i][j]-u_ref[i][j]);
-       }
-   }
- 
-   double err = 0.0;
-   for (int i=1; i<N-1 ;i++)
-   {
-       for (int j=1; j<N-1 ;j++)
-       {
-	   err += du_err[i][j];
-       }
-   }
-   err = err/pow(double(N),2.0);	
-   printf("%f %4e",t/dt, err);
+    }
+    if(mode==0){
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5)/dx);
+            J = int((y[p]+0.5)/dy);
+            K = int((z[p]+0.5)/dz);
+            if(abs(x[p]-I*dx)>abs(x[p]-(I+1)*dx)) I++;
+            if(abs(x[p]-J*dy)>abs(x[p]-(J+1)*dy)) J++;
+            if(abs(x[p]-K*dz)>abs(x[p]-(K+1)*dz)) K++;
+            rho[I][J][K] += m/(dx*dy*dz);
+        }
+    }else if(mode==1){
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5)/dx);
+            J = int((y[p]+0.5)/dy);
+            K = int((z[p]+0.5)/dz);
+            for(int i = I ; i<=I+1 ; i++){
+                for(int j = J ; j<=J+1 ; j++){
+                    for(int k = K ; k<=K+1 ; k++){
+                        rho[i][j][k] += m*(1.0-abs(x[p]+0.5-i*dx)/dx)*(1.0-abs(y[p]+0.5-j*dy)/dy)*(1.0-abs(z[p]+0.5-k*dz)/dz)/(dx*dy*dz);
+                    }
+                }
+            }
+        }
+    }else if(mode==2){
+        double fx, fy, fz;
+        for(int p = 0 ; p<n ; p++){
+            I = int((x[p]+0.5+.5*dx)/dx);
+            J = int((y[p]+0.5+.5*dy)/dy);
+            K = int((z[p]+0.5+.5*dz)/dz);
+            for(int i = I-1 ; i<=I+1 ; i++){
+                if(i==I) fx = 0.75 - pow( x[p]+0.5-i*dx , 2 ) / pow(dx,2);
+                else fx = 0.5 * pow( 1.5-abs(x[p]+0.5-i*dx)/dx , 2);
+                for(int j = J-1 ; j<=J+1 ; j++){
+                    if(j==J) fy = 0.75 - pow( y[p]+0.5-j*dy , 2 ) / pow(dy,2);
+                    else fy = 0.5 * pow( 1.5-abs(y[p]+0.5-j*dy)/dy , 2);
+                    for(int k = K-1 ; k<=K+1 ; k++){
+                        if(k==K) fz = 0.75 - pow( z[p]+0.5-k*dz , 2 ) / pow(dz,2);
+                        else fz = 0.5 * pow( 1.5-abs(z[p]+0.5-k*dz)/dz , 2);
+                        rho[i][j][k] += m*fx*fy*fz/(dx*dy*dz);
+                    }
+                }
+            }
+        }
+    }
+}
 
-   return EXIT_SUCCESS;
+
+int main(){
+	/* Variables */
+    double t = 0.; //time
+    double dt = 0.1; // time step
+    double PDx = 0.2, PDy = 0.2, PDz = 0.2; //size of particle clumps
+    double *x = new double [n]; //positions of the particles
+    double *y = new double [n];
+    double *z = new double [n];
+    double *vx = new double [n]; //velocities of the particles
+    double *vy = new double [n];
+    double *vz = new double [n];
+    double ***rho = new double ** [Nx]; // mass density
+    double ***U = new double ** [Nx]; // Periodic B.C.
+    
+	srand(time(NULL));
+	/* Initialization */
+        //Random distribution
+	for(int i = 0 ; i<n ; i++){
+		x[i] = Lx * .5*PDx*(rand()/(double)RAND_MAX-0.5);
+		y[i] = Ly * .5*PDy*(rand()/(double)RAND_MAX-0.5);
+		z[i] = Lz * .5*PDz*(rand()/(double)RAND_MAX-0.5);
+		double r0 = pow(PDx,2) + pow(PDy,2) + pow(PDz,2);
+		double v0 = sqrt(G*m/r0);
+		vx[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
+		vy[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
+		vz[i] = v0 * (2*rand()/(double)RAND_MAX-1.0);
+	}
+        //set U = 0.0
+	for(int i = 0 ; i<Nx ; i++){
+		rho[i] = new double *[Ny];
+		U[i] = new double *[Ny];
+		for(int j = 0 ; j<Ny ; j++){
+			rho[i][j] = new double [Nz];
+			U[i][j] = new double [Nz];
+			for(int k = 0 ; k<Nz ; k++){
+				U[i][j][k] = 0.;
+			}
+		}
+	}
+    
+    double M = 0; // total mass
+    mesh(rho,x,y,z,0);
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
+    mesh(rho,x,y,z,1);
+   	M = 0;
+   	for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
+	mesh(rho,x,y,z,2);
+	M = 0;
+    for(int i = 0 ; i<Nx ; i++){
+        for(int j = 0 ; j<Ny ; j++){
+            for(int k = 0 ; k<Nz ; k++){
+                M += rho[i][j][k]*dx*dy*dz;
+            }
+        }
+    }
+    std::cout << M << std::endl;
+    
+    //Starting to calculate force on partilces
+    if (OI_mode == 0){
+        //drift: update position by 0.5*dt
+	for(int i = 0 ; i<n ; i++){          
+           x[i] += vx[i]*0.5*dt;
+           y[i] += vy[i]*0.5*dt;
+           z[i] += vz[i]*0.5*dt;
+	}
+        //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
+	for(int i = 0 ; i<n ; i++){
+	    double F_x, F_y, F_z;
+            mesh(rho,x[i],y[i],z[i],0);
+	    Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	    vx[i] += F_x/m*dt;
+	    vy[i] += F_y/m*dt;
+	    vz[i] += F_z/m*dt;
+	}
+        //drift: update position by 0.5*dt
+	for(int i = 0 ; i<n ; i++){
+           x[i] += vx[i]*0.5*dt;
+           y[i] += vy[i]*0.5*dt;
+           z[i] += vz[i]*0.5*dt;
+        }
+    }
+
+    if (OI_mode == 1){
+       for(int i = 0 ; i<n ; i++){
+	//kick
+	  double F_x, F_y, F_z;
+	  mesh(rho,x[i],y[i],z[i],0);
+	  Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	  vx[i] += F_x/m*0.5*dt;
+	  vy[i] += F_y/m*0.5*dt;
+	  vz[i] += F_z/m*0.5*dt;
+	}
+	//drift: update position by dt
+	for(int i = 0 ; i<n ; i++){
+	   x[i] += vx[i]*dt;
+           y[i] += vy[i]*dt;
+           z[i] += vz[i]*dt;
+	}
+        //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
+	for(int i = 0 ; i<n ; i++){	   
+	   double F_x, F_y, F_z;
+	   mesh(rho,x[i],y[i],z[i],0);
+	   Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	   vx[i] += F_x/m*0.5*dt;
+	   vy[i] += F_y/m*0.5*dt;
+	   vz[i] += F_z/m*0.5*dt;
+        }
+    }
+
+    if (OI_mode == 2){
+        #fourth-order symplectic coefficients
+        double w1 = 1.0/( 2.0 - pow(2.0,1.0/3.0) )
+        double w0 = 1.0 - 2.0*w1
+        double c1 = w1/2.0
+        double c2 = ( w1+w0 )/2.0
+        double c3 = c2
+        double c4 = c1 
+        double d1 = w1
+        double d2 = w0
+        double d3 = w1
+
+        for(int i = 0 ; i<n ; i++){
+	   x[i] += vx[i]*c1*dt;
+           y[i] += vy[i]*c1*dt;
+           z[i] += vz[i]*c1*dt;
+	}
+
+        for(int i = 0 ; i<n ; i++){
+	  double F_x, F_y, F_z;
+	  mesh(rho,x[i],y[i],z[i],0);
+	  Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	  vx[i] += F_x/m*d1*dt;
+	  vy[i] += F_y/m*d1*dt;
+	  vz[i] += F_z/m*d1*dt;
+	}
+
+	for(int i = 0 ; i<n ; i++){
+	   x[i] += vx[i]*c2*dt;
+           y[i] += vy[i]*c2*dt;
+           z[i] += vz[i]*c2*dt;
+	}
+
+        for(int i = 0 ; i<n ; i++){
+	  double F_x, F_y, F_z;
+	  mesh(rho,x[i],y[i],z[i],0);
+	  Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	  vx[i] += F_x/m*d2*dt;
+	  vy[i] += F_y/m*d2*dt;
+	  vz[i] += F_z/m*d2*dt;
+	}
+
+        for(int i = 0 ; i<n ; i++){
+	   x[i] += vx[i]*c3*dt;
+           y[i] += vy[i]*c3*dt;
+           z[i] += vz[i]*c3*dt;
+	}
+
+        for(int i = 0 ; i<n ; i++){
+	  double F_x, F_y, F_z;
+	  mesh(rho,x[i],y[i],z[i],0);
+	  Get_Force_of_Particle(U,x[i],y[i],z[i],F_x,F_y,F_z);
+	  vx[i] += F_x/m*d3*dt;
+	  vy[i] += F_y/m*d3*dt;
+	  vz[i] += F_z/m*d3*dt;
+	}
+
+	for(int i = 0 ; i<n ; i++){
+	   x[i] += vx[i]*c4*dt;
+           y[i] += vy[i]*c4*dt;
+           z[i] += vz[i]*c4*dt;
+	}
+    }
+	
+	
+	   
+	return 0;
+}
+
+void Get_Force_of_Particle(double ***U, double x, double y, double z, double &F_x, double &F_y, double &F_z){
+
+        int X_grid = (x/dx);
+        int Y_grid = (y/dx);
+        int Z_grid = (z/dx);
+        printf("%d\n",X_grid);
+        F_x = U[X_grid-2][Y_grid][Z_grid]/12. -  U[X_grid-1][Y_grid][Z_grid]*(2./3.)
+                + U[X_grid+1][Y_grid][Z_grid]*(2./3.) - U[X_grid+2][Y_grid][Z_grid]*(1./12.);
+        F_y = U[X_grid][Y_grid-2][Z_grid]/12. -  U[X_grid][Y_grid-1][Z_grid]*(2./3.)
+                + U[X_grid][Y_grid+1][Z_grid]*(2./3.) - U[X_grid][Y_grid+2][Z_grid]*(1./12.);
+        F_z = U[X_grid][Y_grid][Z_grid-2]/12. -  U[X_grid][Y_grid][Z_grid-1]*(2./3.)
+                + U[X_grid][Y_grid][Z_grid+1]*(2./3.) - U[X_grid][Y_grid][Z_grid+2]*(1./12.);
+	//Herby: This part is still not finished
 }
