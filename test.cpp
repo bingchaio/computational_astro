@@ -1,30 +1,42 @@
-#include <stdio.h>
-#include <fftw3.h>
-#define N 8
+#include "fftw++.h"
 
-int main(int argc, char *argv[])
+// Compile with:
+// g++ -I .. -fopenmp example0.cc ../fftw++.cc -lfftw3 -lfftw3_omp
+
+using namespace std;
+using namespace utils;
+using namespace fftwpp;
+
+int main()
 {
-    double in1[] = { 0.00000, 0.12467, 0.24740, 0.36627,
-                     0.47943, 0.58510, 0.68164, 0.76754
-    };
+  // fftw::maxthreads=get_max_threads();
+  
+  cout << "1D complex to complex in-place FFT, not using the Array class" 
+       << endl;
 
-    double in2[N];
+//  cout << endl << "FFTW requires memory alignment of " << fftw_alignment()
+//       << "."  << endl;   
+  
+  unsigned int n=4; 
+  Complex *f=ComplexAlign(n);
+  
+  fft1d Forward(n,-1);
+  fft1d Backward(n,1);
+  
+  for(unsigned int i=0; i < n; i++) f[i]=i;
 
-    fftw_complex  out[N / 2 + 1];
-    fftw_plan     p1, p2;
+  cout << "\ninput:" << endl;
+  for(unsigned int i=0; i < n; i++) cout << f[i] << endl;       
 
-    p1 = fftw_plan_dft_r2c_1d(N, in1, out, FFTW_ESTIMATE);
-    p2 = fftw_plan_dft_c2r_1d(N, out, in2, FFTW_ESTIMATE);
+  Forward.fft(f);
 
-    fftw_execute(p1);
-    fftw_execute(p2);
+  cout << "\noutput:" << endl;
+  for(unsigned int i=0; i < n; i++) cout << f[i] << endl;       
 
-    for (int i = 0; i < N; i++) {
-          printf("%2d %15.10f %15.10f\n", i, in1[i], in2[i] / N);
-    }
+  Backward.fftNormalized(f);
 
-    fftw_destroy_plan(p1);
-    fftw_destroy_plan(p2);
-
-    return 0;
+  cout << "\ntransformed back:" << endl;
+  for(unsigned int i=0; i < n; i++) cout << f[i] << endl;
+  
+  deleteAlign(f);
 }
