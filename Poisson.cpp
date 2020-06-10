@@ -12,17 +12,14 @@ using namespace utils;
 using namespace Array;
 using namespace fftwpp;
 
-double f(double x, double y){
-	return 1/(1-x+y*y);
-}
 double rho(double x, double y){
-	return x+y;
+	return 1/(1+x+y*y);
 }
 
 int main(){
 	fftw::maxthreads = 1;
     double Lx = 1.0, Ly = 1.0;
-    double dx = Lx/(N), dy = Ly/(N);
+    double dx = Lx/(N), dy = Ly/(N); 
 	double M = 0;
 
 	array2<Complex> rho_x(N,N,sizeof(Complex));
@@ -32,22 +29,15 @@ int main(){
 	fft2d Forward(N, N, -1, rho_x, rho_k);
 	fft2d Backward(N, N, 1, phi_k, phi_x);
 	
-	for(int i = 0 ; i<N ; i++){
-		for(int j = 0 ; j<N ; j++){
-			phi_x(i,j) = f(dx*i, dy*j);
-        }
-	}
-	for(int i = 0 ; i<N ; i++){
-		for(int j = 0 ; j<N ; j++){
-			// rho_x(i,j) = (phi_x((i+1)%N,j)+phi_x((N+i-1)%N,j)+phi_x(i,(N+j-1)%N)+phi_x(i,(j+1)%N)-4.0*phi_x(i,j))/(dx*dx);
-			rho_x(i,j) = rho(dx*i, dy*j);
-			// if(i==0||i==N-1||j==0||j==N-1) rho_x(i,j) = 0;
-			M += real(rho_x(i,j))*dx*dy;
+	for(int i = 1 ; i<N-1 ; i++){
+		for(int j = 1 ; j<N-1 ; j++){
+			if(i==N/2&&j==N/2) rho_x(i,j) = 1;//rho(dx*i, dy*j);
+			M += real(rho_x(i,j));
 		}
 	}
+	M /= (4*N-4);
+	for(int i = 0 ; i<N ; i++) for(int j = 0 ; j<N ; j++) if(i==0||i==N-1||j==0||j==N-1) rho_x(i,j) = -M;
 
-	// cout << "f = \n";
-	// cout << phi_x << endl;
 	cout << "rho_x = \n";
 	cout << rho_x << endl;	
 	
@@ -74,22 +64,12 @@ int main(){
     Lap *= 0;
 	for(int i = 0 ; i<N ; i++){
         for(int j = 0 ; j<N ; j++){
-            Lap(i,j) = (phi_x((i+1)%N,j)+phi_x((N+i-1)%N,j)+phi_x(i,(j+1)%N)+phi_x(i,(N+j-1)%N)-4.0*phi_x(i,j))/(dx*dx) - rho_x(i,j);
+            Lap(i,j) = (phi_x((i+1)%N,j)+phi_x((N+i-1)%N,j)+phi_x(i,(j+1)%N)+phi_x(i,(N+j-1)%N)-4.0*phi_x(i,j))/(dx*dx);
         }
     }
-    cout << "Lap phi_x - rho_x= \n";
+    cout << "Lap phi_x = \n";
 	cout << Lap << endl;
 
-    array2<Complex> gx(N,N,sizeof(Complex));
-    gx *= 0;
-	for(int i = 0 ; i<N ; i++){
-        for(int j = 0 ; j<N ; j++){
-            gx(i,j) = (phi_x((i+1)%N,j)-phi_x((N+i-1)%N,j))/(2.*dx) - (f(dx*((i+1)%N),dy*j)-f(dx*((N+i-1)%N),dy*j))/(2.*dx);
-        }
-    }
-    cout << "gx - partial_x f = \n";
-	cout << gx << endl;
-	
 	cout << "M = " << M << endl;
 	
     return 0;
