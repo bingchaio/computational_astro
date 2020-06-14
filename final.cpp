@@ -11,7 +11,6 @@
 #include "Array.h"
 
 #define PI M_PI
-#define N 6
 
 using namespace std;
 using namespace utils;
