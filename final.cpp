@@ -118,7 +118,7 @@ void mesh(double ** * rho, double * x, double * y, double * z, int mode) {
             }
         }
     } else if (mode == 2) {
-        double fx, fy, fz;
+		double fx, fy, fz;
         for (int p = 0; p < n; p++) {
             X_grid = int((x[p] + Lx / 2) / dx);
             Y_grid = int((y[p] + Ly / 2) / dx);
@@ -200,7 +200,7 @@ int main() {
             }
         }
     }
-    std::cout << M << std::endl;
+	std::cout << M << std::endl;
     mesh(rho, x, y, z, 2);
     M = 0;
     for (int i = 0; i < Nx; i++) {
