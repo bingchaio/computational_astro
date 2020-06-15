@@ -32,7 +32,7 @@ double m = 1.0; // particle mass
 //Particle Force Interpolation Function
 void Get_Force_of_Particle(double *** U, double x, double y, double z, double & F_x, double & F_y, double & F_z, int mode) {
     
-    int X_grid, Y_grid, Z_grid;
+	int X_grid, Y_grid, Z_grid;
     if (mode == 0) {
         X_grid = int( x / dx);
         Y_grid = int( y / dy);
