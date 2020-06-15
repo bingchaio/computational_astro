@@ -23,7 +23,8 @@ int OI_mode = 3; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplecti
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0; // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-int Nx = 32, Ny = 32, Nz = 32; // # of grid points
+int N = 32; // # of grid points
+int Nx = N, Ny = N, Nz = N; // # of grid points
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
 int n = 1000; // # of particles
 double m = 1.0; // particle mass
