@@ -80,7 +80,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 	if (abs(x - X_grid * dx) > abs(x - (X_grid + 1) * dx)) X_grid++;
         if (abs(y - Y_grid * dy) > abs(y - (Y_grid + 1) * dy)) Y_grid++;
         if (abs(z - Z_grid * dz) > abs(z - (Z_grid + 1) * dz)) Z_grid++;
-	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
+	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx) && (Y_grid<Ny) && (Z_grid<Nz)){
             for (int i = X_grid; i <= X_grid + 1; i++) {
                 if (i == X_grid) fx = 0.75 - pow(x - i * dx, 2) / pow(dx, 2);
                 else fx = 0.5 * pow(1.5 - abs(x - i * dx) / dx, 2);
@@ -91,11 +91,11 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
                         if (k == Z_grid) fz = 0.75 - pow(z - k * dz, 2) / pow(dz, 2);
                         else fz = 0.5 * pow(1.5 - abs(z - k * dz) / dz, 2);
                         f = fx * fy * fz;
-                        F_x += f * (U[(X_grid +N - 2)%N][Y_grid][Z_grid] / 12. - U[(X_grid +N - 1)%N][Y_grid][Z_grid] * (2. / 3.) +
+                        F_x += f * (U[(X_grid + N - 2)%N][Y_grid][Z_grid] / 12. - U[(X_grid + N - 1)%N][Y_grid][Z_grid] * (2. / 3.) +
                                 U[(X_grid + 1)%N][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%N][Y_grid][Z_grid] * (1. / 12.));
-                        F_y += f * (U[X_grid][(Y_grid +N - 2)%N][Z_grid] / 12. - U[X_grid][(Y_grid +N - 1)%N][Z_grid] * (2. / 3.) +
+                        F_y += f * (U[X_grid][(Y_grid +N - 2)%N][Z_grid] / 12. - U[X_grid][(Y_grid + N - 1)%N][Z_grid] * (2. / 3.) +
                                 U[X_grid][(Y_grid + 1)%N][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%N][Z_grid] * (1. / 12.));
-                        F_z += f * (U[X_grid][Y_grid][(Z_grid +N - 2)%N] / 12. - U[X_grid][Y_grid][(Z_grid +N - 1)%N] * (2. / 3.) +
+                        F_z += f * (U[X_grid][Y_grid][(Z_grid +N - 2)%N] / 12. - U[X_grid][Y_grid][(Z_grid + N - 1)%N] * (2. / 3.) +
                                 U[X_grid][Y_grid][(Z_grid + 1)%N] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%N] * (1. / 12.));
                 	}
 		}
@@ -181,7 +181,7 @@ void mesh(double *** rho, double * x, double * y, double * z, int mode) {
             X_grid = int((x[p]) / dx);
             Y_grid = int((y[p]) / dx);
             Z_grid = int((z[p]) / dx);
-	    if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx-1) && (Y_grid+1<Ny-1) && (Z_grid+1<Nz-1)){
+	    if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
                 for (int i = X_grid; i <= X_grid + 1; i++) {
                     for (int j = Y_grid; j <= Y_grid + 1; j++) {
                         for (int k = Z_grid; k <= Z_grid + 1; k++) {
@@ -197,7 +197,7 @@ void mesh(double *** rho, double * x, double * y, double * z, int mode) {
             X_grid = int((x[p]) / dx);
             Y_grid = int((y[p]) / dx);
             Z_grid = int((z[p]) / dx);
-	    if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+2<Nx-2) && (Y_grid+2<Ny-2) && (Z_grid+2<Nz-2)){
+	    if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+2<Nx) && (Y_grid+2<Ny) && (Z_grid+2<Nz)){
                 for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                     if (i == X_grid) fx = 0.75 - pow(x[p] - i * dx, 2) / pow(dx, 2);
                     else fx = 0.5 * pow(1.5 - abs(x[p] - i * dx) / dx, 2);
