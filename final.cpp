@@ -7,7 +7,6 @@
 #include<cmath>
 #include<ctime>
 #include<fftw++.h>
-#include <complex.h>
 #include "Array.h"
 
 #define PI M_PI
