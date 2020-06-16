@@ -13,7 +13,8 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
-int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
+int mesh_mode = 1; // 0: NGP ; 1: CIC ; 2: TSC
+int force_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
 int OI_mode = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
@@ -37,13 +38,13 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         if (abs(y - Y_grid * dy) > abs(y - (Y_grid + 1) * dy)) Y_grid++;
         if (abs(z - Z_grid * dz) > abs(z - (Z_grid + 1) * dz)) Z_grid++;
         if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx) && (Y_grid<Ny) && (Z_grid<Nz)){
-	    F_x = -( U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
+            F_x = -( U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
                 U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.) );
-        F_y = -( U[X_grid][(Y_grid - 2 + Ny)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
+            F_y = -( U[X_grid][(Y_grid - 2 + Ny)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
                 U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.) );
-        F_z = -( U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
-            U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.) );
-	}
+            F_z = -( U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
+                U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.) );
+        }
     } else if (mode == 1) {
         double f;
         X_grid = int( x/ dx);
@@ -245,23 +246,6 @@ int main() {
     }
     
     while (t <= t_end) {
-        
-        // check momentum conservation
-        double Px = 0, Py = 0, Pz = 0;
-        double X = 0, Y = 0, Z = 0;
-        int n_in = 0;
-        if((int)(t/dt)%100==0){
-            for(int p = 0 ; p<n ; p++){
-                Px += m*vx[p];
-                Py += m*vy[p];
-                Pz += m*vz[p];
-                if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz) n_in++;
-            }
-            printf("t = %.3f\t", t);
-            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\t", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
-            printf("n_in = %d\n", n_in);
-        }
-        
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
@@ -276,7 +260,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * dt;
                 vy[i] += F_y / m * dt;
                 vz[i] += F_z / m * dt;
@@ -296,7 +280,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * 0.5 * dt;
                 vy[i] += F_y / m * 0.5 * dt;
                 vz[i] += F_z / m * 0.5 * dt;
@@ -312,7 +296,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * 0.5 * dt;
                 vy[i] += F_y / m * 0.5 * dt;
                 vz[i] += F_z / m * 0.5 * dt;
@@ -342,7 +326,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * d1 * dt;
                 vy[i] += F_y / m * d1 * dt;
                 vz[i] += F_z / m * d1 * dt;
@@ -358,7 +342,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * d2 * dt;
                 vy[i] += F_y / m * d2 * dt;
                 vz[i] += F_z / m * d2 * dt;
@@ -374,7 +358,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 vx[i] += F_x / m * d3 * dt;
                 vy[i] += F_y / m * d3 * dt;
                 vz[i] += F_z / m * d3 * dt;
@@ -417,7 +401,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 kr1[i][0] = vx[i];
                 kr1[i][1] = vy[i];
                 kr1[i][2] = vy[i];
@@ -435,7 +419,7 @@ int main() {
             FFT(rho,U);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv2[i][0] = F_x/m;
                 kv2[i][1] = F_y/m;
                 kv2[i][2] = F_z/m;
@@ -450,7 +434,7 @@ int main() {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
                 FFT(rho,U);
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv3[i][0] = F_x/m;
                 kv3[i][1] = F_y/m;
                 kv3[i][2] = F_z/m;
@@ -465,7 +449,7 @@ int main() {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
                 FFT(rho,U);
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, mesh_mode);
+                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv4[i][0] = F_x/m;
                 kv4[i][1] = F_y/m;
                 kv4[i][2] = F_z/m;
@@ -478,6 +462,25 @@ int main() {
                 vy[i] += (kv1[i][1] + 2. * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
                 vz[i] += (kv1[i][1] + 2. * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
             }
+        }
+        
+        // check conservation
+        double Px = 0, Py = 0, Pz = 0;
+        double X = 0, Y = 0, Z = 0;
+        double M = 0;
+        int n_in = 0;
+        if((int)(t/dt)%100==0){
+            cout << "================================\n";
+            for(int p = 0 ; p<n ; p++){
+                Px += m*vx[p];
+                Py += m*vy[p];
+                Pz += m*vz[p];
+                if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz) n_in++;
+            }
+            for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
+            printf("t = %.3f\n", t);
+            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
+            printf("n_in = %d\tM = %.3f\n", n_in, M);
         }
         
         t += dt;
