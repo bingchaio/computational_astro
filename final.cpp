@@ -131,7 +131,7 @@ void FFT(double ***rho,double ***U){
     	for(int i = 0 ; i<Nx ; i++){
 		for(int j = 0 ; j<Ny ; j++){
 			for(int k = 0 ; k<Nz ; k++){
-        		    	phi_k(i,j,k) = -dx*dy*dz*rho_k(i,j,k) / ( 4.0 * ( pow(sin(PI*min(i,Nx-i)/Nx),2.0) + pow(sin(PI*min(j,Ny-j)/Ny),2.0) + pow(sin(PI*min(k,Nz-k)/Nz),2.0) ) ) ;
+        		    	phi_k(i,j,k) = -4*PI*G*dx*dy*dz*rho_k(i,j,k) / ( 4.0 * ( pow(sin(PI*min(i,Nx-i)/Nx),2.0) + pow(sin(PI*min(j,Ny-j)/Ny),2.0) + pow(sin(PI*min(k,Nz-k)/Nz),2.0) ) ) ;
 				if(i==0 && j==0 && k==0) phi_k(i,j,k) = 0;
 			}
 		}
