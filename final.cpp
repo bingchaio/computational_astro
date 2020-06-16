@@ -2,10 +2,6 @@
 // PARTICLE MESH
 // ==============
 
-#include<iostream>
-#include<cstdlib>
-#include<cmath>
-#include<ctime>
 #include<fftw++.h>
 #include "Array.h"
 
