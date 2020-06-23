@@ -13,8 +13,8 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
-int mesh_mode = 1; // 0: NGP ; 1: CIC ; 2: TSC
-int force_mode = 1; // 0: NGP ; 1: CIC ; 2: TSC
+int mesh_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
+int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
 int OI_mode = 2; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
@@ -23,7 +23,7 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
 int N = 32; // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 1; // # of particles
+int n = 10; // # of particles
 double m = 1.0; // particle mass
 
 //----------------------------------------------------------functions------------------------------------------------
@@ -60,12 +60,12 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
                 for (int j = Y_grid; j <= Y_grid + 1; j++) {
                     for (int k = Z_grid; k <= Z_grid + 1; k++) {
                         f = (1.0 - abs(x - i * dx) / dx) * (1.0 - abs(y - j * dy) / dy) * (1.0 - abs(z - k * dz) / dz);
-                        F_x -= f * (U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
-                                    U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.));
-                        F_y -= f * (U[X_grid][(Y_grid + Ny - 2)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
-                                    U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.));
-                        F_z -= f * (U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.));
+                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
+                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
+                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
+                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
+                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
+                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
                     }
                 }
 	    }
@@ -76,22 +76,22 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         Y_grid = int( y / dx);
         Z_grid = int( z / dx);
 	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx) && (Y_grid<Ny) && (Z_grid<Nz)){
-            for (int i = X_grid; i <= X_grid + 1; i++) {
+            for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                 if (i == X_grid) fx = 0.75 - pow(x - i * dx, 2) / pow(dx, 2);
                 else fx = 0.5 * pow(1.5 - abs(x - i * dx) / dx, 2);
-                for (int j = Y_grid; j <= Y_grid + 1; j++) {
+                for (int j = Y_grid - 1; j <= Y_grid + 1; j++) {
                     if (j == Y_grid) fy = 0.75 - pow(y - j * dy, 2) / pow(dy, 2);
                     else fy = 0.5 * pow(1.5 - abs(y - j * dy) / dy, 2);
-                    for (int k = Z_grid; k <= Z_grid + 1; k++) {
+                    for (int k = Z_grid - 1; k <= Z_grid + 1; k++) {
                         if (k == Z_grid) fz = 0.75 - pow(z - k * dz, 2) / pow(dz, 2);
                         else fz = 0.5 * pow(1.5 - abs(z - k * dz) / dz, 2);
                         f = fx * fy * fz;
-                        F_x -= f * (U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
-                                    U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.));
-                        F_y -= f * (U[X_grid][(Y_grid + Ny - 2)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
-                                    U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.));
-                        F_z -= f * (U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.));
+                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
+                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
+                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
+                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
+                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
+                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
                 	}
 		}
             }
