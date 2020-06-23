@@ -17,7 +17,9 @@ ax.set_xlabel('X Label')
 ax.set_ylabel('Y Label')
 ax.set_zlabel('Z Label')
 
-plot_max = sys.argv[1]
+plot_max = 9999 
+#Or you can set it by sys.argv
+#sys.argv[1]
 
 count = 0
 while (count < plot_max):
