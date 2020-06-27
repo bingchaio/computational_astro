@@ -13,9 +13,15 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
+<<<<<<< HEAD
 int mesh_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
 int OI_mode = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+=======
+int mesh_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
+int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
+int OI_mode = 2; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+>>>>>>> master
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1; // gravitational constant
@@ -109,8 +115,12 @@ void FFT(double ***rho,double ***U){
     fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
     fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
     double M = 0; // total mass
+<<<<<<< HEAD
    
    /*	
+=======
+    
+>>>>>>> master
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
@@ -120,8 +130,12 @@ void FFT(double ***rho,double ***U){
         }
     }
     for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(i==0||i==Nx-1||j==0||j==Ny-1||k==0||k==Nz-1) rho_x(i,j,k) = -M/(Nx*Ny*Nz-(Nx-2)*(Ny-2)*(Nz-2));
+<<<<<<< HEAD
     */
 
+=======
+    
+>>>>>>> master
 	Forward.fft0(rho_x, rho_k);
 	
     for(int i = 0 ; i<Nx ; i++){
@@ -218,7 +232,11 @@ double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, doubl
 int main() {
     /* Variables */
     double t = 0.0; //time
+<<<<<<< HEAD
     double t_end = 0.1; //ending time
+=======
+    double t_end = 10.0; //ending time
+>>>>>>> master
     double dt = 0.001; // time step
     double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
     double * x = new double[n]; //positions of the particles
@@ -499,12 +517,20 @@ int main() {
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz));
         }
+<<<<<<< HEAD
         for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
         fclose(den_output);
 	t += dt;
 
+=======
+        
+        t += dt;
+>>>>>>> master
     }
     return EXIT_SUCCESS;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
