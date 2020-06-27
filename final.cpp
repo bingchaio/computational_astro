@@ -257,10 +257,10 @@ int main() {
     
     while (t <= t_end) {
 	FILE *den_output;
-        char fname[100];
-        int t_out = (t/dt);
-        sprintf(fname,"density_%04d", (t_out));
-        den_output = fopen(fname,"w");
+        //char fname[100];
+        //int t_out = (t/dt);
+        //sprintf(fname,"density_%04d", (t_out));
+        //den_output = fopen(fname,"w");
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
@@ -498,7 +498,7 @@ int main() {
             printf("n_in = %d\tM = %.3f\tE = %.3f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz));
         }
         //for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
-        fclose(den_output);
+        //fclose(den_output);
 	t += dt;
 
     }
