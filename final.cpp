@@ -20,7 +20,7 @@ int OI_mode = 2; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplecti
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0; // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-int N = 128; // # of grid points
+int N = 32; // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
 int n = 1000; // # of particles
@@ -29,7 +29,7 @@ double m = 1.0; // particle mass
 //----------------------------------------------------------functions------------------------------------------------
 //Particle Force Interpolation Function
 void Get_Force_of_Particle(double *** U, double x, double y, double z, double & F_x, double & F_y, double & F_z, int mode) {
-	int X_grid, Y_grid, Z_grid;
+    int X_grid, Y_grid, Z_grid;
     if (mode == 0) {
         X_grid = int( x / dx);
         Y_grid = int( y / dy);
@@ -43,46 +43,46 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
             F_y = -( - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * 0.5 + U[X_grid][(Y_grid + 1)%Ny][Z_grid] * 0.5 );
             F_z = -( - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * 0.5 + U[X_grid][Y_grid][(Z_grid + 1)%Nz] * 0.5 );
             /*
-            F_x = -( U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
-                     U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.) );
-            F_y = -( U[X_grid][(Y_grid - 2 + Ny)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
-                     U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.) );
-            F_z = -( U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
-                     U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.) );
-	    */
+             F_x = -( U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) +
+             U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.) );
+             F_y = -( U[X_grid][(Y_grid - 2 + Ny)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
+             U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.) );
+             F_z = -( U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
+             U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.) );
+             */
         }
     } else if (mode == 1) {
         double f;
         X_grid = int( x/ dx);
         Y_grid = int( y/ dx);
         Z_grid = int( z/ dx);
-	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
+        if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
             for (int i = X_grid; i <= X_grid + 1; i++) {
                 for (int j = Y_grid; j <= Y_grid + 1; j++) {
                     for (int k = Z_grid; k <= Z_grid + 1; k++) {
                         f = (1.0 - abs(x - i * dx) / dx) * (1.0 - abs(y - j * dy) / dy) * (1.0 - abs(z - k * dz) / dz);
-
-			F_x -= f * (-U[(i + Nx - 1)%Nx][j][k] * 0.5 + U[(i + 1)%Nx][j][k] * 0.5);
+                        
+                        F_x -= f * (-U[(i + Nx - 1)%Nx][j][k] * 0.5 + U[(i + 1)%Nx][j][k] * 0.5);
                         F_y -= f * (-U[i][(j + Ny - 1)%Ny][k] * 0.5 + U[i][(j + 1)%Ny][k] * 0.5);
                         F_z -= f * (-U[i][j][(k + Nz - 1)%Nz] * 0.5 + U[i][j][(k + 1)%Nz] * 0.5);
-			/*
-                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
-                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
-                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
-                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
-                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
-			*/
+                        /*
+                         F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
+                         U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
+                         F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
+                         U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
+                         F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
+                         U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
+                         */
                     }
                 }
-	    }
+            }
         }
     } else if (mode == 2){
         double fx, fy, fz, f;
         X_grid = int( x / dx);
         Y_grid = int( y / dx);
         Z_grid = int( z / dx);
-	if ((X_grid>=1) && (Y_grid>=1) && (Z_grid>=1) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
+        if ((X_grid>=1) && (Y_grid>=1) && (Z_grid>=1) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
             for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                 if (i == X_grid) fx = 0.75 - pow(x - i * dx, 2) / pow(dx, 2);
                 else fx = 0.5 * pow(1.5 - abs(x - i * dx) / dx, 2);
@@ -96,16 +96,16 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
                         F_x -= f * (-U[(i + Nx - 1)%Nx][j][k] * 0.5 + U[(i + 1)%Nx][j][k] * 0.5);
                         F_y -= f * (-U[i][(j + Ny - 1)%Ny][k] * 0.5 + U[i][(j + 1)%Ny][k] * 0.5);
                         F_z -= f * (-U[i][j][(k + Nz - 1)%Nz] * 0.5 + U[i][j][(k + 1)%Nz] * 0.5);
-			/*
-                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
-                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
-                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
-                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
-                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
-			*/
-                	}
-		}
+                        /*
+                         F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
+                         U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.));
+                         F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
+                         U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.));
+                         F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
+                         U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.));
+                         */
+                    }
+                }
             }
         }
     }
@@ -120,19 +120,20 @@ void FFT(double ***rho,double ***U){
     array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex));
     fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
     fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
-    double M = 0; // total mass
-    /*
+    // double M = 0; // total mass
+    
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
                 rho_x(i,j,k) = rho[i][j][k];
-                M += rho[i][j][k];
+                // M += rho[i][j][k];
             }
         }
     }
-    for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(i==0||i==Nx-1||j==0||j==Ny-1||k==0||k==Nz-1) rho_x(i,j,k) = -M/(Nx*Ny*Nz-(Nx-2)*(Ny-2)*(Nz-2));
-    */
-    Forward.fft0(rho_x, rho_k);
+    // for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(i==0||i==Nx-1||j==0||j==Ny-1||k==0||k==Nz-1) rho_x(i,j,k) = -M/(Nx*Ny*Nz-(Nx-2)*(Ny-2)*(Nz-2));
+    
+     
+	Forward.fft0(rho_x, rho_k);
 	
     for(int i = 0 ; i<Nx ; i++){
 		for(int j = 0 ; j<Ny ; j++){
@@ -141,11 +142,11 @@ void FFT(double ***rho,double ***U){
 				if(i==0 && j==0 && k==0) phi_k(i,j,k) = 0;
 			}
 		}
-    }
+	}
 	
-    Backward.fft0Normalized(phi_k, phi_x);
+	Backward.fft0Normalized(phi_k, phi_x);
 
-    for(int i = 0 ; i<Nx ; i++){
+	for(int i = 0 ; i<Nx ; i++){
         for(int j = 0 ; j<Ny ; j++){
             for(int k = 0 ; k<Nz ; k++){
                 U[i][j][k] = real(phi_x(i,j,k));
@@ -229,7 +230,7 @@ int main() {
     /* Variables */
     double t = 0.0; //time
     double t_end = 10.0; //ending time
-    double dt = 0.01; // time step
+    double dt = 0.001; // time step
     double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
     double * x = new double[n]; //positions of the particles
     double * y = new double[n];
@@ -268,7 +269,11 @@ int main() {
     }
     
     while (t <= t_end) {
-	
+	FILE *den_output;
+        //char fname[100];
+        //int t_out = (t/dt);
+        //sprintf(fname,"density_%04d", (t_out));
+        //den_output = fopen(fname,"w");
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
@@ -493,11 +498,6 @@ int main() {
         double M = 0;
         int n_in = 0;
         if((int)(t/dt)%100==0){
-	    FILE *den_output;
-            char fname[100];
-            int t_out = (t/dt);
-            sprintf(fname,"density_%04d", (t_out));
-            den_output = fopen(fname,"w");
             cout << "================================\n";
             for(int p = 0 ; p<n ; p++){
                 Px += m*vx[p];
@@ -509,9 +509,9 @@ int main() {
             printf("t = %.3f\n", t);
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz));
-	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
-            fclose(den_output);
-        }     
+        }
+        //for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+        //fclose(den_output);
 	t += dt;
 
     }
