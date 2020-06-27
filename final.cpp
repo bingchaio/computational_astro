@@ -109,7 +109,8 @@ void FFT(double ***rho,double ***U){
     fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
     fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
     double M = 0; // total mass
-    
+   
+   /*	
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
@@ -119,7 +120,8 @@ void FFT(double ***rho,double ***U){
         }
     }
     for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(i==0||i==Nx-1||j==0||j==Ny-1||k==0||k==Nz-1) rho_x(i,j,k) = -M/(Nx*Ny*Nz-(Nx-2)*(Ny-2)*(Nz-2));
-    
+    */
+
 	Forward.fft0(rho_x, rho_k);
 	
     for(int i = 0 ; i<Nx ; i++){
