@@ -218,7 +218,7 @@ double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, doubl
 int main() {
     /* Variables */
     double t = 0.0; //time
-    double t_end = 10.0; //ending time
+    double t_end = 0.1; //ending time
     double dt = 0.001; // time step
     double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
     double * x = new double[n]; //positions of the particles
