@@ -13,17 +13,17 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
-int mesh_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int mesh_mode = 1; // 0: NGP ; 1: CIC ; 2: TSC
+int force_mode = 1; // 0: NGP ; 1: CIC ; 2: TSC
+int OI_mode = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0; // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-int N = 128; // # of grid points
+int N = 32; // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 1000; // # of particles
+int n = 10; // # of particles
 double m = 1.0; // particle mass
 
 //----------------------------------------------------------functions------------------------------------------------
@@ -229,7 +229,7 @@ int main() {
     /* Variables */
     double t = 0.0; //time
     double t_end = 10.0; //ending time
-    double dt = 0.01; // time step
+    double dt = 0.001; // time step
     double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
     double * x = new double[n]; //positions of the particles
     double * y = new double[n];
@@ -493,7 +493,7 @@ int main() {
         double M = 0;
         int n_in = 0;
         if((int)(t/dt)%100==0){
-	    FILE *den_output;
+	    	FILE *den_output;
             char fname[100];
             int t_out = (t/dt);
             sprintf(fname,"density_%04d", (t_out));
@@ -507,13 +507,13 @@ int main() {
             }
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
-            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
+            printf("Px = %.6f \t Py = %.6f \t Pz = %.6f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz));
-	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+	    	// for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
             fclose(den_output);
         }     
-	t += dt;
 
+		t += dt;
     }
     return EXIT_SUCCESS;
 }
