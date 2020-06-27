@@ -34,6 +34,6 @@ void test()
    gStyle->SetCanvasPreferGL(1);
    gStyle->SetPalette(1);
 
-   hist->Draw("glcol");
+   hist->Draw("glcolz");
 }
 
