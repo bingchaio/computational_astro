@@ -15,28 +15,29 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
-int mesh_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
+int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
-double G = 1.0; // gravitational constant
-double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-int N = 256; // # of grid points
+double G = 1.0;                                  // gravitational constant
+double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
+int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 3; // # of particles
-double m = 1.0; // particle mass
-double t_end = 10.0; //ending time
-double dt = 0.001; // time step
-double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
-double time_elapsed = 0.0; //elapsed time
-clock_t c_start; //starting time
-clock_t c_end;   //ending time
-array3<Complex> rho_x(Nx,Ny,Nz,sizeof(Complex)); //rho for fft
-array3<Complex> phi_x(Nx,Ny,Nz,sizeof(Complex)); //phi for fft
-array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); //phi_k for fft
-array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex)); //rho_k for fft
+int n = 3;                                       // # of particles
+double m = 1.0;                                  // particle mass
+double t = 0.0;                                  // time
+double t_end = 10.0;                             // ending time
+double dt = 0.001;                               // time step
+double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
+double time_elapsed = 0.0;                       // elapsed time
+struct timeval start, ending;                    // starting and ending time
+const int NThread = 4;                           // number of threads
+array3<Complex> rho_x(Nx,Ny,Nz,sizeof(Complex)); // rho for fft
+array3<Complex> phi_x(Nx,Ny,Nz,sizeof(Complex)); // phi for fft
+array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); // phi_k for fft
+array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex)); // rho_k for fft
 
 //----------------------------------------------------------functions------------------------------------------------
 //Particle Force Interpolation Function
@@ -154,10 +155,13 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
     //fftw::maxthreads = 4;
-    c_start = clock();
+
+    gettimeofday(&start, NULL);
+    
     fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
     fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
-
+    
+    omp_set_num_threads( NThread );
     #  pragma omp parallel
     {
     #  pragma omp for collapse (2)
@@ -199,8 +203,10 @@ void FFT(double ***rho,double ***U,double ***W){
     }
     
     }
-    c_end = clock();
-    time_elapsed += 1.0*(c_end-c_start)/CLOCKS_PER_SEC;
+
+    gettimeofday(&ending, NULL); 
+    float delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
+    time_elapsed += 1.0*(delta);
 }
 
 //Particle Mesh function
@@ -209,6 +215,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
     int X_grid, Y_grid, Z_grid; //grid positions of particles
 
     //initialize rho
+    omp_set_num_threads( NThread );
     #  pragma omp parallel for collapse (2)
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
@@ -300,16 +307,15 @@ double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, doubl
 
 int main() {
     /* Variables */
-    double t = 0.0; //time
-    double * x = new double[n]; //positions of the particles
+    double * x = new double[n];          //positions of the particles
     double * y = new double[n];
     double * z = new double[n];
-    double * vx = new double[n]; //velocities of the particles
+    double * vx = new double[n];         //velocities of the particles
     double * vy = new double[n];
     double * vz = new double[n];
     double *** rho = new double ** [Nx]; // mass density
-    double *** U = new double ** [Nx]; // potential
-    double *** W = new double ** [Nx]; // Poisson solver weighting matrix
+    double *** U = new double ** [Nx];   // potential
+    double *** W = new double ** [Nx];   // Poisson solver weighting matrix
     
     const int NThread = 4;          // number of threads
     omp_set_num_threads( NThread );
