@@ -132,7 +132,7 @@ void FFT(double ***rho,double ***U){
     }
     // for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(i==0||i==Nx-1||j==0||j==Ny-1||k==0||k==Nz-1) rho_x(i,j,k) = -M/(Nx*Ny*Nz-(Nx-2)*(Ny-2)*(Nz-2));
     
-     
+    
 	Forward.fft0(rho_x, rho_k);
 	
     for(int i = 0 ; i<Nx ; i++){
@@ -269,11 +269,12 @@ int main() {
     }
     
     while (t <= t_end) {
-	FILE *den_output;
-        //char fname[100];
-        //int t_out = (t/dt);
-        //sprintf(fname,"density_%04d", (t_out));
-        //den_output = fopen(fname,"w");
+        /*
+        FILE *position_output;
+        sprintf(fname,"position_%04d", (t_out));
+        den_output = fopen(fname,"w");
+        */
+        
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
@@ -492,7 +493,7 @@ int main() {
             }
         }
         
-        // check conservation
+        // output
         double Px = 0, Py = 0, Pz = 0;
         double X = 0, Y = 0, Z = 0;
         double M = 0;
@@ -509,11 +510,24 @@ int main() {
             printf("t = %.3f\n", t);
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz));
+            char name[100], fname[100];
+            int t_out = (t/dt);
+            sprintf(name,"density_%04d", (t_out));
+            FILE *density_output = fopen(name, "w");
+            for(int i = 0 ; i<Nx ; i++){
+                for(int j = 0 ; j<Ny ; j++){
+                    for(int k = 0 ; k<Nz ; k++){
+                        if(rho[i][j][k]!=0) fprintf(density_output, "%d\t%d\t%d\t%e\n", i, j, k, rho[i][j][k]);
+                    }
+                }
+            }
+            fclose(density_output);
         }
-        //for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
-        //fclose(den_output);
-	t += dt;
-
+        
+        //for (int i = 0; i < n; i++) fprintf (position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+        //fclose(position_output);
+        
+        t += dt;
     }
     return EXIT_SUCCESS;
 }
