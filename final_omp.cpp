@@ -22,10 +22,10 @@ int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 256;                                     // # of grid points
+int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 3;                                    // # of particles
+int n = 3;                                      // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
@@ -154,7 +154,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
-    //fftw::maxthreads = 4;
+    //fftw::maxthreads = get_max_threads();
    
     gettimeofday(&start, NULL);
 
@@ -207,7 +207,6 @@ void FFT(double ***rho,double ***U,double ***W){
             }
     	}
     
-    
     }
 
     gettimeofday(&ending, NULL);
@@ -219,7 +218,6 @@ void FFT(double ***rho,double ***U,double ***W){
 void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
     int X_grid, Y_grid, Z_grid; //grid positions of particles
-
     //initialize rho
     omp_set_num_threads( NThread );
     #  pragma omp parallel for collapse (3)
