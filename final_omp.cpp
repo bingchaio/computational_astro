@@ -22,10 +22,10 @@ int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 256;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 3;                                       // # of particles
+int n = 3;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
@@ -34,8 +34,8 @@ double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 const int NThread = 4;                           // number of threads
-array3<Complex> rho_x(Nx,Ny,Nz,sizeof(Complex)); // rho for fft
-array3<Complex> phi_x(Nx,Ny,Nz,sizeof(Complex)); // phi for fft
+array3<double>  rho_x(Nx,Ny,Nz);                 // rho for fft
+array3<double>  phi_x(Nx,Ny,Nz);                 // phi for fft
 array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); // phi_k for fft
 array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex)); // rho_k for fft
 
@@ -155,56 +155,62 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
     //fftw::maxthreads = 4;
-
+   
     gettimeofday(&start, NULL);
-    
-    fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
-    fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
+
+    rcfft3d Forward(Nx, Ny, Nz, rho_x, rho_k);
+    crfft3d Backward(Nx, Ny, Nz, phi_k, phi_x);
     
     omp_set_num_threads( NThread );
     #  pragma omp parallel
     {
-    #  pragma omp for collapse (2)
-    for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            for (int k = 0; k < Nz; k++) {
-                rho_x(i,j,k) = rho[i][j][k];
+    	#  pragma omp for collapse (3)
+    	for (int i = 0; i < Nx; i++) {
+       	    for (int j = 0; j < Ny; j++) {
+            	for (int k = 0; k < Nz; k++) {
+                    rho_x(i,j,k) = rho[i][j][k];
+            	}
             }
-        }
-    }
+    	}
+    	#  pragma omp barrier
+
+    	// fourier transform
+    	#  pragma omp single
+    	Forward.fft0(rho_x, rho_k);
+    	#  pragma omp barrier
+
+    	// calculate the potential in k space
     
-    // fourier transform
-    #  pragma omp single
-    Forward.fft0(rho_x, rho_k);
-    
-    // calculate the potential in k space
-    
-    #  pragma omp for collapse (2)
-    for(int i = 0 ; i<Nx ; i++){
+    	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<Nx ; i++){
 		for(int j = 0 ; j<Ny ; j++){
 			for(int k = 0 ; k<Nz ; k++){
 				phi_k(i,j,k) = W[i][j][k]*rho_k(i,j,k);	
 			}
 		}
-    }
-    phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
+   	}
     
-    // inverse fourier transform
-    #  pragma omp single
-    Backward.fft0Normalized(phi_k, phi_x);
+    	phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
+    	#  pragma omp barrier
+
+    	// inverse fourier transform
+    	#  pragma omp single
+    	Backward.fft0Normalized(phi_k, phi_x);
+    	#  pragma omp barrier
     
-    #  pragma omp for collapse (2)
-    for(int i = 0 ; i<Nx ; i++){
-        for(int j = 0 ; j<Ny ; j++){
-            for(int k = 0 ; k<Nz ; k++){
-                U[i][j][k] = real(phi_x(i,j,k));
+    	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<Nx ; i++){
+            for(int j = 0 ; j<Ny ; j++){
+            	for(int k = 0 ; k<Nz ; k++){
+                    U[i][j][k] = phi_x(i,j,k);
+            	}
             }
-        }
-    }
+    	}
+    
     
     }
 
-    gettimeofday(&ending, NULL); 
+    gettimeofday(&ending, NULL);
     float delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
     time_elapsed += 1.0*(delta);
 }
@@ -216,7 +222,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
     //initialize rho
     omp_set_num_threads( NThread );
-    #  pragma omp parallel for collapse (2)
+    #  pragma omp parallel for collapse (3)
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
@@ -316,9 +322,6 @@ int main() {
     double *** rho = new double ** [Nx]; // mass density
     double *** U = new double ** [Nx];   // potential
     double *** W = new double ** [Nx];   // Poisson solver weighting matrix
-    
-    const int NThread = 4;          // number of threads
-    omp_set_num_threads( NThread );
     
     srand(time(NULL));
     /* Initialization */
