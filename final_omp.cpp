@@ -22,13 +22,13 @@ int OI_mode = 0; //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplecti
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0; // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0; // domain size of 3D box
-int N = 128; // # of grid points
+int N = 256; // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
 int n = 3; // # of particles
 double m = 1.0; // particle mass
 double t_end = 10.0; //ending time
-double dt = 0.0001; // time step
+double dt = 0.001; // time step
 double PDx = 0.1, PDy = 0.1, PDz = 0.1; //size of particle clumps
 double time_elapsed = 0.0; //elapsed time
 clock_t c_start; //starting time
@@ -575,7 +575,7 @@ int main() {
         double M = 0;
         int n_in = 0;
 	
-        if((int)(t/dt)%1000==0){
+        if((int)(t/dt)%100==0){
 	    FILE *den_output;
             char fname[100];
             int t_out = (t/dt);
