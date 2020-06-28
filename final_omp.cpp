@@ -17,15 +17,15 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 64;                                      // # of grid points
+int N = 32;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 10;                                       // # of particles
+int n = 2;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 50.0;                             // ending time
@@ -33,6 +33,7 @@ double dt = 0.001;                               // time step
 double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
+const int NThread = 4;                           // number of threads
 array3<double>  rho_x(Nx,Ny,Nz);                 // rho for fft
 array3<double>  phi_x(Nx,Ny,Nz);                 // phi for fft
 array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); // phi_k for fft
@@ -153,47 +154,63 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
-    //fftw::maxthreads = 1;
-    
+    // fftw::maxthreads = 1;
+   
     gettimeofday(&start, NULL);
 
     rcfft3d Forward(Nx, Ny, Nz, rho_x, rho_k);
     crfft3d Backward(Nx, Ny, Nz, phi_k, phi_x);
+    
+    omp_set_num_threads( NThread );
+    #  pragma omp parallel
+    {
+    	#  pragma omp for collapse (3)
+    	for (int i = 0; i < Nx; i++) {
+       	    for (int j = 0; j < Ny; j++) {
+            	for (int k = 0; k < Nz; k++) {
+                    rho_x(i,j,k) = rho[i][j][k];
+            	}
+            }
+    	}
+    	#  pragma omp barrier
 
-    for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            for (int k = 0; k < Nz; k++) {
-                rho_x(i,j,k) = rho[i][j][k];
+    	// fourier transform
+    	#  pragma omp single
+    	Forward.fft0(rho_x, rho_k);
+    	#  pragma omp barrier
+
+    	// calculate the potential in k space
+    
+    	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<Nx ; i++){
+            for(int j = 0 ; j<Ny ; j++){
+                for(int k = 0 ; k<Nz ; k++){
+                    phi_k(i,j,k) = W[i][j][k]*rho_k(i,j,k);
+                }
             }
         }
-    }
     
-    // fourier transform
-    Forward.fft0(rho_x, rho_k);
+    	phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
+    	#  pragma omp barrier
+
+    	// inverse fourier transform
+    	#  pragma omp single
+    	Backward.fft0Normalized(phi_k, phi_x);
+    	#  pragma omp barrier
     
-    // calculate the potential in k space
-    
-    for(int i = 0 ; i<Nx ; i++){
-		for(int j = 0 ; j<Ny ; j++){
-			for(int k = 0 ; k<Nz ; k++){
-				phi_k(i,j,k) = W[i][j][k]*rho_k(i,j,k);	
-			}
-		}
-    }
-    phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
-    
-    // inverse fourier transform
-    Backward.fft0Normalized(phi_k, phi_x);
-    
-    for(int i = 0 ; i<Nx ; i++){
-        for(int j = 0 ; j<Ny ; j++){
-            for(int k = 0 ; k<Nz ; k++){
-                U[i][j][k] = real(phi_x(i,j,k));
+    	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<Nx ; i++){
+            for(int j = 0 ; j<Ny ; j++){
+            	for(int k = 0 ; k<Nz ; k++){
+                    U[i][j][k] = phi_x(i,j,k);
+            	}
             }
-        }
+    	}
+    
+    
     }
 
-    gettimeofday(&ending, NULL); 
+    gettimeofday(&ending, NULL);
     float delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
     time_elapsed += 1.0*(delta);
 }
@@ -204,6 +221,8 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
     int X_grid, Y_grid, Z_grid; //grid positions of particles
 
     //initialize rho
+    omp_set_num_threads( NThread );
+    #  pragma omp parallel for collapse (3)
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
@@ -294,16 +313,15 @@ double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, doubl
 
 int main() {
     /* Variables */
-    double t = 0.0; //time
-    double * x = new double[n]; //positions of the particles
+    double * x = new double[n];          //positions of the particles
     double * y = new double[n];
     double * z = new double[n];
-    double * vx = new double[n]; //velocities of the particles
+    double * vx = new double[n];         //velocities of the particles
     double * vy = new double[n];
     double * vz = new double[n];
     double *** rho = new double ** [Nx]; // mass density
-    double *** U = new double ** [Nx]; // potential
-    double *** W = new double ** [Nx]; // Poisson solver weighting matrix
+    double *** U = new double ** [Nx];   // potential
+    double *** W = new double ** [Nx];   // Poisson solver weighting matrix
     int frame = 0;
     
     srand(time(NULL));
@@ -346,7 +364,7 @@ int main() {
         double M = 0;
         int n_in = 0;
         
-        if((int)(t/dt)%200==0){
+        if((int)(t/dt)%100==0){
             char fname[100], name[100];
             sprintf(fname,"./output/position_%04d", frame);
             sprintf(name,"./output/density_%04d", frame);
