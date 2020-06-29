@@ -339,18 +339,20 @@ int main() {
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
     
-    x[0] = 0.6;
-    y[0] = 0.5;
-    z[0] = 0.5;
-    x[1] = 0.4;
-    y[1] = 0.5;
-    z[1] = 0.5;
-    vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2)/2;
-    vz[0] = 0.0;
-    vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2)/2;
-    vz[1] = 0.0;
+    if(n==2){
+        x[0] = 0.6;
+        y[0] = 0.5;
+        z[0] = 0.5;
+        x[1] = 0.4;
+        y[1] = 0.5;
+        z[1] = 0.5;
+        vx[0] = 0.0;
+        vy[0] = sqrt(1.0/0.2)/2;
+        vz[0] = 0.0;
+        vx[1] = 0.0;
+        vy[1] = -sqrt(1.0/0.2)/2;
+        vz[1] = 0.0;
+    }
     
 
     printf("periodic N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
@@ -574,7 +576,7 @@ int main() {
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 kr1[i][0] = vx[i];
                 kr1[i][1] = vy[i];
-                kr1[i][2] = vy[i];
+                kr1[i][2] = vz[i];
                 kv1[i][0] = F_x/m;
                 kv1[i][1] = F_y/m;
                 kv1[i][2] = F_z/m;
