@@ -348,10 +348,10 @@ int main() {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2);
+    vy[0] = sqrt(1.0/0.2*0.5);
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2);
+    vy[1] = -sqrt(1.0/0.2*0.5);
     vz[1] = 0.0;
     */
 
@@ -589,7 +589,7 @@ int main() {
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 kr1[i][0] = vx[i];
                 kr1[i][1] = vy[i];
-                kr1[i][2] = vy[i];
+                kr1[i][2] = vz[i];
                 kv1[i][0] = F_x/m;
                 kv1[i][1] = F_y/m;
                 kv1[i][2] = F_z/m;

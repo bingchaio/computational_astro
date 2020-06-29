@@ -17,12 +17,12 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 3;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                      // # of grid points
+int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
 int n = 1000;                                    // # of particles
@@ -338,7 +338,7 @@ int main() {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    /*
+    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -346,12 +346,12 @@ int main() {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2);
+    vy[0] = sqrt(1.0/0.2/2.0);
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2);
+    vy[1] = -sqrt(1.0/0.2/2.0);
     vz[1] = 0.0;
-    */
+    
 
     printf("periodic N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
 
@@ -566,7 +566,7 @@ int main() {
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
                 kr1[i][0] = vx[i];
                 kr1[i][1] = vy[i];
-                kr1[i][2] = vy[i];
+                kr1[i][2] = vz[i];
                 kv1[i][0] = F_x/m;
                 kv1[i][1] = F_y/m;
                 kv1[i][2] = F_z/m;
