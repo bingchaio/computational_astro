@@ -28,10 +28,10 @@ double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resoluti
 int n = 1000;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
-double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
-double dt = 1.0*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
-double t_end = dt*1000.0;                        // ending time                             
-double vi = 1.0;                                 // initial velocity weight
+double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
+double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
+double t_end = dt*800.0;                         // ending time                             
+double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 const int NThread = 4;                           // number of threads
@@ -323,22 +323,22 @@ int main() {
     double *** rho = new double ** [Nx]; // mass density
     double *** U = new double ** [Nx];   // potential
     double *** W = new double ** [Nx];   // Poisson solver weighting matrix
-    int frame = 0;
     
+
     srand(time(NULL));
     /* Initialization */
-    //Random distribution   
+    //Random distribution
+    double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
+    double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
     for (int i = 0; i < n; i++) {
-        x[i] = Lx * PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
-        y[i] = Ly * PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
-        z[i] = Lz * PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
-        double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5);
-        double v0 = vi*sqrt(G * m / r0);
-        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
+        x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+        y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+        z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    
+    /*
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -351,7 +351,9 @@ int main() {
     vx[1] = 0.0;
     vy[1] = -sqrt(1.0/0.2);
     vz[1] = 0.0;
-    
+    */
+
+    printf("periodic N = %d, NThread = %d, dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,NThread,dt,PDx,v0);
 
     //initialize rho, U and W
     for (int i = 0; i < Nx; i++) {
@@ -378,12 +380,11 @@ int main() {
         int n_in = 0;
         
         if((int)(t/dt)%100==0){
-            char fname[100], name[100];
-            sprintf(fname,"./output/position_%04d", frame);
-            sprintf(name,"./output/density_%04d", frame);
-            FILE *position_output = fopen(fname,"w");
-            FILE *density_output = fopen(name,"w");
-            
+	    FILE *den_output;
+            char fname[100];
+            int t_out = (t/dt);
+            sprintf(fname,"density_%04d", (t_out));
+            den_output = fopen(fname,"w");
             cout << "================================\n";
             for(int p = 0 ; p<n ; p++){
                 Px += m*vx[p];
@@ -391,18 +392,15 @@ int main() {
                 Pz += m*vz[p];
                 if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz) n_in++;
             }
+            mesh(rho, x, y, z, mesh_mode);
+            FFT(rho,U,W);
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
-            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
+            printf("Px = %.12f \t Py = %.12f \t Pz = %.12f\tphi(0.4,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
-            
-            for (int i = 0; i < n; i++) fprintf(position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
-            for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(rho[i][j][k]!=0) fprintf(density_output, "%d\t%d\t%d\t%e\n", i, j, k, rho[i][j][k]);
-            fclose(position_output);
-            fclose(density_output);
-            
-            frame++;
-        }
+	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+            fclose(den_output);
+        }     
      
         //DKD
         //Starting to calculate force on partilces
@@ -490,6 +488,7 @@ int main() {
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
+		//printf( "%3f\t",sqrt(F_x*F_x+F_y*F_y+F_z*F_z));
                 vx[i] += F_x / m * d1 * dt;
                 vy[i] += F_y / m * d1 * dt;
                 vz[i] += F_z / m * d1 * dt;

@@ -22,16 +22,16 @@ int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 64;                                      // # of grid points
+int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
 int n = 1000;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
-double t_end = 10.0;                             // ending time
-double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
-double dt = 1.0*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps                              // time step
-double vi = 1.0;                                 // initial velocity weight
+double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
+double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
+double t_end = dt*800.0;                         // ending time                             
+double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 const int NThread = 4;                           // number of threads
@@ -330,15 +330,15 @@ int main() {
     srand(time(NULL));
     /* Initialization */
     //Random distribution
+    double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
+    double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
     for (int i = 0; i < n; i++) {
-        x[i] = Lx * PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
-        y[i] = Ly * PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
-        z[i] = Lz * PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
-        double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5);
-        double v0 = vi*sqrt(G * m / r0);
-        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
+        x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+        y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+        z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
     /*
     x[0] = 0.6;
@@ -354,6 +354,8 @@ int main() {
     vy[1] = -sqrt(1.0/0.2);
     vz[1] = 0.0;
     */
+
+    printf("isolated N = %d, NThread = %d, dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,NThread,dt,PDx,v0);
 
     //initialize rho, U, R
     for (int i = 0; i < Nx; i++) {
