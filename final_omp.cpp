@@ -17,7 +17,7 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 3;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
@@ -25,7 +25,7 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
 int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 1000;                                    // # of particles
+int n = 2;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -338,7 +338,7 @@ int main() {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    /*
+    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -346,12 +346,12 @@ int main() {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2);
+    vy[0] = sqrt(1.0/0.2)/2;
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2);
+    vy[1] = -sqrt(1.0/0.2)/2;
     vz[1] = 0.0;
-    */
+    
 
     printf("periodic N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
 
@@ -380,6 +380,7 @@ int main() {
             double Px = 0, Py = 0, Pz = 0;
             double X = 0, Y = 0, Z = 0;
             double M = 0;
+            double E = Get_Energy(x,y,z,vx,vy,vz);
             int n_in = 0;
             
             char fname[100], name[100];
@@ -398,8 +399,9 @@ int main() {
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
-            printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
+            printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, E,time_elapsed);
             
+            fprintf(density_output, "%.4f\t%e\t%d\n", t, E, n_in);
             //for (int i = 0; i < n; i++) fprintf(position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(rho[i][j][k]!=0) fprintf(density_output, "%d\t%d\t%d\t%e\n", i, j, k, rho[i][j][k]);
             //fclose(position_output);

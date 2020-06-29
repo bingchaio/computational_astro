@@ -17,7 +17,8 @@ int i, j, k;
 double rho;
 char name[64], output_name[64], time_text[64];
 int frame = 0;
-double t = 0;
+double t, E;
+int n_in;
 double phi = 0;
 FILE *myfile;
 
@@ -47,6 +48,8 @@ void anim(){
         t = 0;
     }
     
+    fscanf(myfile, "%lf\t%le\t%d", &t, &E, &n_in);
+    
     while(!feof(myfile)){
         fscanf(myfile, "%d\t%d\t%d\t%le", &i, &j, &k, &rho);
         hist->SetBinContent(i, j, k, rho);
@@ -55,7 +58,7 @@ void anim(){
     hist->SetMaximum(90000);
     hist->SetMinimum(0);
     hist->Draw("box2z");
-    sprintf(time_text, "Density: frame %d", frame);
+    sprintf(time_text, "Density: frame %d, t = %.4f, E = %3e, n = %d", frame, t, E, n_in);
     hist->SetTitle(time_text);
     //gPad->SetPhi(phi);
     gPad->Modified();
