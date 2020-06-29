@@ -30,7 +30,7 @@ double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
 double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
-double dt = 1.0*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps                              // time step
+double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps                              // time step
 double vi = 0.0;                                 // initial velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
@@ -324,7 +324,6 @@ int main() {
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
     }
 
-    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -354,6 +353,9 @@ int main() {
         }
     }
     
+    /* Output parameters */
+    printf("N = %d\tn = %d\tdt = %.4f\t\n", N, n, dt);
+    
     while (t <= t_end) {
      
         // check conservation
@@ -362,7 +364,7 @@ int main() {
         double M = 0;
         int n_in = 0;
 	
-        if((int)(t/dt)%100==0){
+        if((int)(t/dt)%2==0){
 	    FILE *den_output;
             char fname[100];
             int t_out = (t/dt);
