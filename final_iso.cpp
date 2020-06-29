@@ -17,31 +17,28 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 64;                                      // # of grid points
+int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 10;                                      // # of particles
+int n = 1000;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
-double t_end = 10.0;                             // ending time
-double dt = 0.001;                               // time step
-double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
-double vi = 1.0;                                 // initial velocity weight
+double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
+double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
+double t_end = dt*500.0;                         // ending time                             
+double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 const int NThread = 4;                           // number of threads
-//array3<double>  rho_x(2*Nx,2*Ny,2*Nz);         // rho for fft
-//array3<double>  phi_x(2*Nx,2*Ny,2*Nz);         // phi for fft
 array3<Complex> phi_k(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // phi_k for fft
 array3<Complex> rho_k(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // rho_k for fft
 array3<Complex> rho_x(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // rho_x for fft
 array3<Complex> phi_x(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // phi_x for fft
-//array3<double>  R_x(2*Nx,2*Ny,2*Nz);                 // Isolated BC symmetric discrete Green’s function
 array3<Complex> R_x(2*Nx,2*Ny,2*Nz,sizeof(Complex));   // Isolated BC symmetric discrete Green’s function
 array3<Complex> R_k(2*Nx,2*Ny,2*Nz,sizeof(Complex));   // FT of Green function
 
@@ -333,15 +330,15 @@ int main() {
     srand(time(NULL));
     /* Initialization */
     //Random distribution
+    double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
+    double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
     for (int i = 0; i < n; i++) {
-        x[i] = Lx * PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
-        y[i] = Ly * PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
-        z[i] = Lz * PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
-        double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5);
-        double v0 = vi*sqrt(G * m / r0);
-        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
-        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
+        x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+        y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+        z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
     /*
     x[0] = 0.6;
@@ -357,6 +354,8 @@ int main() {
     vy[1] = -sqrt(1.0/0.2);
     vz[1] = 0.0;
     */
+
+    printf("isolated N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
 
     //initialize rho, U, R
     for (int i = 0; i < Nx; i++) {
@@ -404,9 +403,9 @@ int main() {
         double M = 0;
         int n_in = 0;
 	
-        if((int)(t/dt)%100==0){
+        if((int)(t/dt)%(100)==0){
 	    FILE *den_output;
-            char fname[100];
+            char fname[10];
             int t_out = (t/dt);
             sprintf(fname,"density_%04d", (t_out));
             den_output = fopen(fname,"w");
@@ -421,7 +420,7 @@ int main() {
             FFT(rho,U,R_k);
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
-            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
+            printf("Px = %.12f \t Py = %.12f \t Pz = %.12f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
 	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
             fclose(den_output);
@@ -616,10 +615,10 @@ int main() {
                 y_tmp[i]  = y[i] + kr2[i][1]*0.5*dt;
                 z_tmp[i]  = z[i] + kr2[i][2]*0.5*dt;
             }
+	    mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-                FFT(rho,U,R_k);
                 Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv3[i][0] = F_x/m;
                 kv3[i][1] = F_y/m;
@@ -631,10 +630,10 @@ int main() {
                 y_tmp[i]  = y[i] + kr3[i][1]*0.5*dt;
                 z_tmp[i]  = z[i] + kr3[i][2]*0.5*dt;
             }
+	    mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
-                mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-                FFT(rho,U,R_k);
                 Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv4[i][0] = F_x/m;
                 kv4[i][1] = F_y/m;
