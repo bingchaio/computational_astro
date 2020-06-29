@@ -361,7 +361,7 @@ int main() {
     while (t <= t_end) {
      
         // check conservation
-        if((int)(t/dt)%100==0){
+        if((int)(t/dt)%10==0){
             double Px = 0, Py = 0, Pz = 0;
             double X = 0, Y = 0, Z = 0;
             double M = 0;
