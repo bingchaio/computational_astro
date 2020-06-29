@@ -31,6 +31,7 @@ double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
 double dt = 0.001;                               // time step
 double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
+double vi = 1.0;                                 // initial velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 array3<double>  rho_x(Nx,Ny,Nz);                 // rho for fft
@@ -313,7 +314,7 @@ int main() {
         y[i] = Ly * PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
         z[i] = Lz * PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
         double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5);
-        double v0 = sqrt(G * m / r0);
+        double v0 = vi*sqrt(G * m / r0);
         vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
