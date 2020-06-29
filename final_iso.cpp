@@ -22,22 +22,25 @@ int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 64;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 2;                                       // # of particles
+int n = 1000;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
 double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
 double dt = 1.0*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps                              // time step
-double vi = 0.0;                                 // initial velocity weight
+double vi = 1.0;                                 // initial velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
-array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); // phi_k for fft
-array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex)); // rho_k for fft
-array3<Complex> rho_x(Nx,Ny,Nz,sizeof(Complex)); // rho_x for fft
-array3<Complex> phi_x(Nx,Ny,Nz,sizeof(Complex)); // phi_x for fft
+const int NThread = 4;                           // number of threads
+array3<Complex> phi_k(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // phi_k for fft
+array3<Complex> rho_k(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // rho_k for fft
+array3<Complex> rho_x(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // rho_x for fft
+array3<Complex> phi_x(2*Nx,2*Ny,2*Nz,sizeof(Complex)); // phi_x for fft
+array3<Complex> R_x(2*Nx,2*Ny,2*Nz,sizeof(Complex));   // Isolated BC symmetric discrete Green’s function
+array3<Complex> R_k(2*Nx,2*Ny,2*Nz,sizeof(Complex));   // FT of Green function
 
 //----------------------------------------------------------functions------------------------------------------------
 //Particle Force Interpolation Function
@@ -56,21 +59,23 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         if (abs(z - Z_grid * dz) > abs(z - (Z_grid + 1) * dz)) Z_grid++;
 
 	//exclude the particles at the boundary
-        if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx) && (Y_grid<Ny) && (Z_grid<Nz)){
+        if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+2<Nx) && (Y_grid+2<Ny) && (Z_grid+2<Nz)){
 
             //calculate the force by using first-order difference of potential
-	    /*
-            F_x = -( - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * 0.5 + U[(X_grid + 1)%Nx][Y_grid][Z_grid] * 0.5 )/dx; 
-            F_y = -( - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * 0.5 + U[X_grid][(Y_grid + 1)%Ny][Z_grid] * 0.5 )/dy;
-            F_z = -( - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * 0.5 + U[X_grid][Y_grid][(Z_grid + 1)%Nz] * 0.5 )/dz;
+            /*
+	    F_x = -( - U[X_grid - 1][Y_grid][Z_grid] * 0.5 + U[X_grid + 1][Y_grid][Z_grid] * 0.5 )/dx; 
+            F_y = -( - U[X_grid][Y_grid - 1][Z_grid] * 0.5 + U[X_grid][Y_grid + 1][Z_grid] * 0.5 )/dy;
+            F_z = -( - U[X_grid][Y_grid][Z_grid - 1] * 0.5 + U[X_grid][Y_grid][Z_grid + 1] * 0.5 )/dz;
             */
-	    //calculate the force by using second-order difference of potential	    
-            F_x = -( U[(X_grid + Nx - 2)%Nx][Y_grid][Z_grid] / 12. - U[(X_grid + Nx - 1)%Nx][Y_grid][Z_grid] * (2. / 3.) + 
-                     U[(X_grid + 1)%Nx][Y_grid][Z_grid] * (2. / 3.) - U[(X_grid + 2)%Nx][Y_grid][Z_grid] * (1. / 12.) )/dx;
-            F_y = -( U[X_grid][(Y_grid - 2 + Ny)%Ny][Z_grid] / 12. - U[X_grid][(Y_grid + Ny - 1)%Ny][Z_grid] * (2. / 3.) +
-                     U[X_grid][(Y_grid + 1)%Ny][Z_grid] * (2. / 3.) - U[X_grid][(Y_grid + 2)%Ny][Z_grid] * (1. / 12.) )/dy;
-            F_z = -( U[X_grid][Y_grid][(Z_grid + Nz - 2)%Nz] / 12. - U[X_grid][Y_grid][(Z_grid + Nz - 1)%Nz] * (2. / 3.) +
-                     U[X_grid][Y_grid][(Z_grid + 1)%Nz] * (2. / 3.) - U[X_grid][Y_grid][(Z_grid + 2)%Nz] * (1. / 12.) )/dz;
+	    //calculate the force by using second-order difference of potential
+	    
+            F_x = -( U[X_grid - 2][Y_grid][Z_grid] / 12. - U[X_grid - 1][Y_grid][Z_grid] * (2. / 3.) + 
+                     U[X_grid + 1][Y_grid][Z_grid] * (2. / 3.) - U[X_grid + 2][Y_grid][Z_grid] * (1. / 12.) )/dx;
+            F_y = -( U[X_grid][Y_grid - 1][Z_grid] / 12. - U[X_grid][Y_grid - 1][Z_grid] * (2. / 3.) +
+                     U[X_grid][Y_grid + 1][Z_grid] * (2. / 3.) - U[X_grid][Y_grid + 2][Z_grid] * (1. / 12.) )/dy;
+            F_z = -( U[X_grid][Y_grid][Z_grid - 2] / 12. - U[X_grid][Y_grid][Z_grid - 1] * (2. / 3.) +
+                     U[X_grid][Y_grid][Z_grid + 1] * (2. / 3.) - U[X_grid][Y_grid][Z_grid + 2] * (1. / 12.) )/dz;
+	    
         }
     } else if (mode == 1) {
 
@@ -82,7 +87,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         Z_grid = int( z/ dx);
 
 	//exclude the particles at the boundary
-	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
+	if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
             for (int i = X_grid; i <= X_grid + 1; i++) {
                 for (int j = Y_grid; j <= Y_grid + 1; j++) {
                     for (int k = Z_grid; k <= Z_grid + 1; k++) {
@@ -92,18 +97,18 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 			
 			//calculate the force by using first-order difference of potential
 			/*
-			F_x -= f * (-U[(i + Nx - 1)%Nx][j][k] * 0.5 + U[(i + 1)%Nx][j][k] * 0.5)/dx;
-                        F_y -= f * (-U[i][(j + Ny - 1)%Ny][k] * 0.5 + U[i][(j + 1)%Ny][k] * 0.5)/dy;
-                        F_z -= f * (-U[i][j][(k + Nz - 1)%Nz] * 0.5 + U[i][j][(k + 1)%Nz] * 0.5)/dz;
+			F_x -= f * (-U[i - 1][j][k] * 0.5 + U[i + 1][j][k] * 0.5)/dx;
+                        F_y -= f * (-U[i][j - 1][k] * 0.5 + U[i][j + 1][k] * 0.5)/dy;
+                        F_z -= f * (-U[i][j][k - 1] * 0.5 + U[i][j][k + 1] * 0.5)/dz;
 			*/
 			//calculate the force by using second-order difference of potential
 			
-                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
-                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.))/dx;
-                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
-                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.))/dy;
-                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.))/dz;
+                        F_x -= f * (U[i - 2][j][k] / 12. - U[i - 1][j][k] * (2. / 3.) +
+                                    U[i + 1][j][k] * (2. / 3.) - U[i + 2][j][k] * (1. / 12.))/dx;
+                        F_y -= f * (U[i][j - 2][k] / 12. - U[i][j - 1][k] * (2. / 3.) +
+                                    U[i][j + 1][k] * (2. / 3.) - U[i][j + 2][k] * (1. / 12.))/dy;
+                        F_z -= f * (U[i][j][k - 2] / 12. - U[i][j][k - 1] * (2. / 3.) +
+                                    U[i][j][k + 1] * (2. / 3.) - U[i][j][k + 2] * (1. / 12.))/dz;
 			
                     }
                 }
@@ -119,7 +124,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         Z_grid = int( z / dx);
 
 	//exclude the particles at the boundary
-	if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
+	if ((X_grid>2) && (Y_grid>2) && (Z_grid>2) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
             for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                 if (i == X_grid) fx = 0.75 - pow(x - i * dx, 2) / pow(dx, 2); //calculate the weigting factor by TSC
                 else fx = 0.5 * pow(1.5 - abs(x - i * dx) / dx, 2);
@@ -132,19 +137,19 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
                         f = fx * fy * fz;
 
 			//calculate the force by using first-order difference of potential
-                        /*
-			F_x -= f * (-U[(i + Nx - 1)%Nx][j][k] * 0.5 + U[(i + 1)%Nx][j][k] * 0.5)/dx;
-                        F_y -= f * (-U[i][(j + Ny - 1)%Ny][k] * 0.5 + U[i][(j + 1)%Ny][k] * 0.5)/dy;
-                        F_z -= f * (-U[i][j][(k + Nz - 1)%Nz] * 0.5 + U[i][j][(k + 1)%Nz] * 0.5)/dz;
+			/*
+			F_x -= f * (-U[i - 1][j][k] * 0.5 + U[i + 1][j][k] * 0.5)/dx;
+                        F_y -= f * (-U[i][j - 1][k] * 0.5 + U[i][j + 1][k] * 0.5)/dy;
+                        F_z -= f * (-U[i][j][k - 1] * 0.5 + U[i][j][k + 1] * 0.5)/dz;
 			*/
 			//calculate the force by using second-order difference of potential
 			
-                        F_x -= f * (U[(i + Nx - 2)%Nx][j][k] / 12. - U[(i + Nx - 1)%Nx][j][k] * (2. / 3.) +
-                                    U[(i + 1)%Nx][j][k] * (2. / 3.) - U[(i + 2)%Nx][j][k] * (1. / 12.))/dx;
-                        F_y -= f * (U[i][(j + Ny - 2)%Ny][k] / 12. - U[i][(j + Ny - 1)%Ny][k] * (2. / 3.) +
-                                    U[i][(j + 1)%Ny][k] * (2. / 3.) - U[i][(j + 2)%Ny][k] * (1. / 12.))/dy;
-                        F_z -= f * (U[i][j][(k + Nz - 2)%Nz] / 12. - U[i][j][(k + Nz - 1)%Nz] * (2. / 3.) +
-                                    U[i][j][(k + 1)%Nz] * (2. / 3.) - U[i][j][(k + 2)%Nz] * (1. / 12.))/dz;
+                        F_x -= f * (U[i - 2][j][k] / 12. - U[i - 1][j][k] * (2. / 3.) +
+                                    U[i + 1][j][k] * (2. / 3.) - U[i + 2][j][k] * (1. / 12.))/dx;
+                        F_y -= f * (U[i][j - 2][k] / 12. - U[i][j - 1][k] * (2. / 3.) +
+                                    U[i][j + 1][k] * (2. / 3.) - U[i][j + 2][k] * (1. / 12.))/dy;
+                        F_z -= f * (U[i][j][k - 2] / 12. - U[i][j][k - 1] * (2. / 3.) +
+                                    U[i][j][k + 1] * (2. / 3.) - U[i][j][k + 2] * (1. / 12.))/dz;
 			
                 	}
 		}
@@ -153,48 +158,61 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
     }
 }
 
-
 //Poisson Solver (FFT)
-void FFT(double ***rho,double ***U,double ***W){
-    //fftw::maxthreads = 1;
-    
+void FFT(double ***rho,double ***U,array3<Complex> R_k){
+    //fftw::maxthreads = 4;
+
     gettimeofday(&start, NULL);
+    
+    fft3d Forward(2*Nx, 2*Ny, 2*Nz, -1, rho_x, rho_k);
+    fft3d Backward(2*Nx, 2*Ny, 2*Nz, 1, phi_k, phi_x);
 
-    fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
-    fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
-
-    for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            for (int k = 0; k < Nz; k++) {
-                rho_x(i,j,k) = rho[i][j][k];
+    omp_set_num_threads( NThread );
+    #  pragma omp parallel
+    {
+    	#  pragma omp for collapse (3)
+    	for (int i = 0; i < Nx; i++) {
+       	    for (int j = 0; j < Ny; j++) {
+            	for (int k = 0; k < Nz; k++) {
+                    rho_x(i,j,k) = rho[i][j][k];
+            	}
             }
-        }
-    }
+    	}
+
+    	#  pragma omp barrier
+
+    	// fourier transform
+    	#  pragma omp single
+    	Forward.fft0(rho_x, rho_k);
+    	#  pragma omp barrier
+	
+    	// calculate the potential in k space
     
-    // fourier transform
-    Forward.fft0(rho_x, rho_k);
-    
-    // calculate the potential in k space
-    
-    for(int i = 0 ; i<Nx ; i++){
-		for(int j = 0 ; j<Ny ; j++){
-			for(int k = 0 ; k<Nz ; k++){
-				phi_k(i,j,k) = W[i][j][k]*rho_k(i,j,k);	
+	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<2*Nx ; i++){
+		for(int j = 0 ; j<2*Ny ; j++){
+	   		for(int k = 0 ; k<2*Nz ; k++){
+				phi_k(i,j,k) = R_k(i,j,k)*rho_k(i,j,k);	
 			}
-		}
-    }
+      		}
+    	}
+        
+	#  pragma omp barrier
 
-    phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
+        // inverse fourier transform
+    	#  pragma omp single
+    	Backward.fft0Normalized(phi_k, phi_x);
+    	#  pragma omp barrier
     
-    // inverse fourier transform
-    Backward.fft0Normalized(phi_k, phi_x);
-    
-    for(int i = 0 ; i<Nx ; i++){
-        for(int j = 0 ; j<Ny ; j++){
-            for(int k = 0 ; k<Nz ; k++){
-                U[i][j][k] = real(phi_x(i,j,k));
+    	#  pragma omp for collapse (3)
+    	for(int i = 0 ; i<Nx ; i++){
+            for(int j = 0 ; j<Ny ; j++){
+            	for(int k = 0 ; k<Nz ; k++){
+                    U[i][j][k] = real(phi_x(i,j,k))/Nx/Ny/Nz;
+            	}
             }
-        }
+    	}
+
     }
 
     gettimeofday(&ending, NULL); 
@@ -206,8 +224,10 @@ void FFT(double ***rho,double ***U,double ***W){
 void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
     int X_grid, Y_grid, Z_grid; //grid positions of particles
-    //initialize rho
 
+    //initialize rho
+    omp_set_num_threads( NThread );
+    #  pragma omp parallel for collapse (3)
     for (int i = 0; i < Nx; i++) {
         for (int j = 0; j < Ny; j++) {
             for (int k = 0; k < Nz; k++) {
@@ -230,7 +250,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
             if (abs(z[p] - Z_grid * dz) > abs(z[p] - (Z_grid + 1) * dz)) Z_grid++;
 
 	    // set the density by NGP
-            if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx) && (Y_grid<Ny) && (Z_grid<Nz)) rho[X_grid][Y_grid][Z_grid] += m / (dx * dy * dz);
+            if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+2<Nx) && (Y_grid+2<Ny) && (Z_grid+2<Nz)) rho[X_grid][Y_grid][Z_grid] += m / (dx * dy * dz);
         }
     } else if (mode == 1) {
         for (int p = 0; p < n; p++) {
@@ -241,7 +261,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
             Z_grid = int((z[p]) / dx);
 	    
 	    //exclude the particles at the boundary
-            if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
+            if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
                 for (int i = X_grid; i <= X_grid + 1; i++) {
                     for (int j = Y_grid; j <= Y_grid + 1; j++) {
                         for (int k = Z_grid; k <= Z_grid + 1; k++) {
@@ -264,7 +284,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
             Z_grid = int((z[p]) / dx);
 
 	    //exclude the particles at the boundary
-            if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
+            if ((X_grid>2) && (Y_grid>2) && (Z_grid>2) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
                 for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                     if (i == X_grid) fx = 0.75 - pow(x[p] - i * dx, 2) / pow(dx, 2); //calculate the weigting factor by TSC
                     else fx = 0.5 * pow(1.5 - abs(x[p] - i * dx) / dx, 2);
@@ -298,17 +318,14 @@ double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, doubl
 
 int main() {
     /* Variables */
-    double t = 0.0; //time
-    double * x = new double[n]; //positions of the particles
+    double * x = new double[n];          //positions of the particles
     double * y = new double[n];
     double * z = new double[n];
-    double * vx = new double[n]; //velocities of the particles
+    double * vx = new double[n];         //velocities of the particles
     double * vy = new double[n];
     double * vz = new double[n];
     double *** rho = new double ** [Nx]; // mass density
-    double *** U = new double ** [Nx]; // potential
-    double *** W = new double ** [Nx]; // Poisson solver weighting matrix
-    
+    double *** U = new double ** [Nx];   // potential
     
     srand(time(NULL));
     /* Initialization */
@@ -323,8 +340,7 @@ int main() {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
     }
-
-    
+    /*
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -337,34 +353,57 @@ int main() {
     vx[1] = 0.0;
     vy[1] = -sqrt(1.0/0.2);
     vz[1] = 0.0;
-    
-    //initialize rho, U and W
+    */
+
+    //initialize rho, U, R
     for (int i = 0; i < Nx; i++) {
         rho[i] = new double * [Ny];
         U[i] = new double * [Ny];
-	W[i] = new double * [Ny];
+	
         for (int j = 0; j < Ny; j++) {
             rho[i][j] = new double[Nz];
             U[i][j] = new double[Nz];
-	    W[i][j] = new double[Nz];
+	    
             for (int k = 0; k < Nz; k++) {
-                U[i][j][k] = 0.;
-		W[i][j][k] = -4.0*PI*G / ( 4.0 * ( pow(sin(PI*min(i,Nx-i)/Nx)/dx,2) + pow(sin(PI*min(j,Ny-j)/Ny)/dy,2) + pow(sin(PI*min(k,Nz-k)/Nz)/dz,2) ) );
-            }
-        }
-    }
-    
+                U[i][j][k]   = 0.;
+		rho[i][j][k] = 0.;
+		rho_x(i,j,k) = 0.0;
+		rho_x(2*Nx-i-1,j,k) = 0.0; 
+		rho_x(i,2*Ny-j-1,k) = 0.0;
+		rho_x(i,j,2*Nz-k-1) = 0.0;
+		rho_x(2*Nx-i-1,2*Ny-j-1,k) = 0.0;
+		rho_x(2*Nx-i-1,j,2*Nz-k-1) = 0.0;
+		rho_x(i,2*Ny-j-1,2*Nz-k-1) = 0.0;
+		rho_x(2*Nx-i-1,2*Ny-j-1,2*Nz-k-1) = 0.0;
+		R_x(i,j,k) = -G/pow((pow(i*dx,2)+pow(j*dy,2)+pow(k*dz,2)),0.5);
+		R_x(2*Nx-i-1,j,k) = -G/pow((pow((i+1)*dx,2)+pow(j*dy,2)+pow(k*dz,2)),0.5); 
+		R_x(i,2*Ny-j-1,k) = -G/pow((pow(i*dx,2)+pow((j+1)*dy,2)+pow(k*dz,2)),0.5);
+		R_x(i,j,2*Nz-k-1) = -G/pow((pow(i*dx,2)+pow(j*dy,2)+pow((k+1)*dz,2)),0.5);
+		R_x(2*Nx-i-1,2*Ny-j-1,k) = -G/pow((pow((i+1)*dx,2)+pow((j+1)*dy,2)+pow(k*dz,2)),0.5);
+		R_x(2*Nx-i-1,j,2*Nz-k-1) = -G/pow((pow((i+1)*dx,2)+pow(j*dy,2)+pow((k+1)*dz,2)),0.5);
+		R_x(i,2*Ny-j-1,2*Nz-k-1) = -G/pow((pow(i*dx,2)+pow((j+1)*dy,2)+pow((k+1)*dz,2)),0.5);
+		R_x(2*Nx-i-1,2*Ny-j-1,2*Nz-k-1) = -G/pow((pow((i+1)*dx,2)+pow((j+1)*dy,2)+pow((k+1)*dz,2)),0.5);
+	    }
+	}
+    }	
+
+    R_x(0,0,0) = 0.0;
+    R_x(Nx,Ny,Nz) = 0.0;
+    //FT of Green function
+    fft3d Forward(2*Nx, 2*Ny, 2*Nz, -1, R_x, R_k);
+    Forward.fft0(R_x, R_k);
+
     while (t <= t_end) {
-     
+
         // check conservation
         double Px = 0, Py = 0, Pz = 0;
         double X = 0, Y = 0, Z = 0;
         double M = 0;
         int n_in = 0;
 	
-        if((int)(t/dt)%100==0){
+        if((int)(t/dt)%(10)==0){
 	    FILE *den_output;
-            char fname[100];
+            char fname[10];
             int t_out = (t/dt);
             sprintf(fname,"density_%04d", (t_out));
             den_output = fopen(fname,"w");
@@ -375,16 +414,16 @@ int main() {
                 Pz += m*vz[p];
                 if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz) n_in++;
             }
-            mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+	    mesh(rho, x, y, z, mesh_mode);
+            FFT(rho,U,R_k);
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
-            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.4,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
+            printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
 	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
             fclose(den_output);
-        }     
-
+        }    
+     
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
@@ -399,7 +438,7 @@ int main() {
 	    
             mesh(rho, x, y, z, mesh_mode);
 	    
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
 	    
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
@@ -421,7 +460,7 @@ int main() {
         else if (OI_mode == 1) {
             //kick
             mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -437,7 +476,7 @@ int main() {
             }
             //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
             mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -467,7 +506,7 @@ int main() {
             }
             
             mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -483,7 +522,7 @@ int main() {
             }
             
             mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -499,7 +538,7 @@ int main() {
             }
             
             mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -542,7 +581,7 @@ int main() {
                 z_tmp[i] = z[i];
             }
             mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
@@ -560,7 +599,7 @@ int main() {
                 z_tmp[i] += kr1[i][2]*0.5*dt;
             }
             mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-            FFT(rho,U,W);
+            FFT(rho,U,R_k);
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
@@ -577,7 +616,7 @@ int main() {
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-                FFT(rho,U,W);
+                FFT(rho,U,R_k);
                 Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv3[i][0] = F_x/m;
                 kv3[i][1] = F_y/m;
@@ -592,7 +631,7 @@ int main() {
             for (int i = 0; i < n; i++) {
                 double F_x=0.0, F_y=0.0, F_z=0.0;
                 mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
-                FFT(rho,U,W);
+                FFT(rho,U,R_k);
                 Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
                 kv4[i][0] = F_x/m;
                 kv4[i][1] = F_y/m;
@@ -614,5 +653,6 @@ int main() {
     
     return EXIT_SUCCESS;
 }
+
 
 
