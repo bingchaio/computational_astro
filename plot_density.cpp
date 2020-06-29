@@ -10,7 +10,7 @@
 using namespace std;
 
 double dt = 0.1;
-int N = 128;
+int N = 64;
 int Nx = N, Ny = N, Nz = N;
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;
 int i, j, k;
