@@ -338,7 +338,7 @@ int main() {
     vz[1] = 0.0;
     */
 
-    printf("no parallel N = %d, dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,dt,PDx,v0);
+    printf("no parallel N = %d mesh mode = %d orbit mode = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,dt,PDx,v0);
     
     //initialize rho, U and W
     for (int i = 0; i < Nx; i++) {

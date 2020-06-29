@@ -30,7 +30,7 @@ double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
 double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
-double t_end = dt*800.0;                         // ending time                             
+double t_end = dt*900.0;                         // ending time                             
 double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
@@ -353,7 +353,7 @@ int main() {
     vz[1] = 0.0;
     */
 
-    printf("periodic N = %d, NThread = %d, dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,NThread,dt,PDx,v0);
+    printf("periodic N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
 
     //initialize rho, U and W
     for (int i = 0; i < Nx; i++) {
