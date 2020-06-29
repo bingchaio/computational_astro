@@ -22,7 +22,7 @@ int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 64;                                     // # of grid points
+int N = 2;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
 int n = 1000;                                       // # of particles
@@ -30,7 +30,7 @@ double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
 double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
-double t_end = 2*dt*900.0;                         // ending time                             
+double t_end = dt*900.0;                         // ending time
 double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
@@ -304,9 +304,13 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 double Get_Energy(double *x, double *y, double *z, double *vx, double *vy, double *vz){
     double E = 0.0;
     for(int p = 0 ; p<n ; p++){
-        E += 0.5 * m * (vx[p]*vx[p]+vy[p]*vy[p]+vz[p]*vz[p]); //kinetic energy
-        for(int q = p+1 ; q<n ; q++){
-            E -= G*m*m/sqrt(pow(x[p]-x[q],2)+pow(y[p]-y[q],2)+pow(z[p]-z[q],2)); //potential energy
+        if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz){
+            E += 0.5 * m * (vx[p]*vx[p]+vy[p]*vy[p]+vz[p]*vz[p]); //kinetic energy
+            for(int q = p+1 ; q<n ; q++){
+                if(x[q]>0&&x[q]<Lx&&y[q]>0&&y[q]<Ly&&z[q]>0&&z[q]<Lz){
+                    E -= G*m*m/sqrt(pow(x[p]-x[q],2)+pow(y[p]-y[q],2)+pow(z[p]-z[q],2)); //potential energy
+                }
+            }
         }
     }
     return E;
@@ -332,19 +336,19 @@ int main() {
     double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
     for (int i = 0; i < n; i++) {
         if(i<n/2){
-            x[i] = 2.5*PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2+0.2;
-            y[i] = 2.5*PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2+0.2;
-            z[i] = 2.5*PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2+0.2;
-            vx[i] = v0 * ( rand() / (double) RAND_MAX /*- 0.5*/) *2.0;
-            vy[i] = v0 * ( rand() / (double) RAND_MAX /*- 0.5*/) *2.0;
-            vz[i] = v0 * ( rand() / (double) RAND_MAX /*- 0.5*/) *2.0;
+            x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+            y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+            z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+            vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+            vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+            vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         }else{
-            x[i] = 2.5*PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2-0.2;
-            y[i] = 2.5*PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2-0.2;
-            z[i] = 2.5*PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2-0.2;
-            vx[i] = -v0 * ( rand() / (double) RAND_MAX ) *2.0;
-            vy[i] = -v0 * ( rand() / (double) RAND_MAX ) *2.0;
-            vz[i] = -v0 * ( rand() / (double) RAND_MAX ) *2.0;
+            x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+            y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+            z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+            vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+            vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+            vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         }
         
     }
