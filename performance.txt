@@ -1,0 +1,39 @@
+Test Cpu time from t= 0.0 to t= 0.1
+Default Setting N=64, dt=1e-4, Mesh Mode = TSC, OI Mode = DKD
+I. Grid Number (with OMP thread number = 4) N=128
+N             CPU time (sec)
+16        	0.44
+32       	1.675
+64       	13.276
+128      	124.10
+256             1126.44
+
+
+II.Mesh mode N=64
+Mesh mode     CPU time (sec)
+NGP		13.077
+CIC		13.070
+TSC		13.154
+
+
+III. dt N=64
+dt	     CPU time (sec)
+1e-2     	0.208
+1e-3	 	1.375
+1e-4     	13.154
+1e-5     	131.088
+
+IV. Number of Threads NT
+NT	     CPU time (sec)
+1		27.759	
+2               18.532
+4		13.154
+8		14.153
+
+V. Number of particles n
+n	     CPU time (sec)
+1e1		111.369
+1e2		112.02
+1e3		111.819
+1e4		129.87
+
