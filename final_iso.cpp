@@ -83,8 +83,8 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 	//grid positions of particles (left grid)
         X_grid = int( x/ dx);
-        Y_grid = int( y/ dx);
-        Z_grid = int( z/ dx);
+        Y_grid = int( y/ dy);
+        Z_grid = int( z/ dz);
 
 	//exclude the particles at the boundary
 	if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
@@ -120,8 +120,8 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 	//grid positions of particles (left grid)
         X_grid = int( x / dx);
-        Y_grid = int( y / dx);
-        Z_grid = int( z / dx);
+        Y_grid = int( y / dy);
+        Z_grid = int( z / dz);
 
 	//exclude the particles at the boundary
 	if ((X_grid>2) && (Y_grid>2) && (Z_grid>2) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
@@ -241,8 +241,8 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
 	    //grid positions of particles (left grid)
             X_grid = int((x[p]) / dx);
-            Y_grid = int((y[p]) / dx);
-            Z_grid = int((z[p]) / dx); 
+            Y_grid = int((y[p]) / dy);
+            Z_grid = int((z[p]) / dz); 
 
 	    //choose the nearest grid
             if (abs(x[p] - X_grid * dx) > abs(x[p] - (X_grid + 1) * dx)) X_grid++;
@@ -257,8 +257,8 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
 	    //grid positions of particles (left grid)
             X_grid = int((x[p]) / dx);
-            Y_grid = int((y[p]) / dx);
-            Z_grid = int((z[p]) / dx);
+            Y_grid = int((y[p]) / dy);
+            Z_grid = int((z[p]) / dz);
 	    
 	    //exclude the particles at the boundary
             if ((X_grid>1) && (Y_grid>1) && (Z_grid>1) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
@@ -280,8 +280,8 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
 
 	    //grid positions of particles (left grid)
             X_grid = int((x[p]) / dx);
-            Y_grid = int((y[p]) / dx);
-            Z_grid = int((z[p]) / dx);
+            Y_grid = int((y[p]) / dy);
+            Z_grid = int((z[p]) / dz);
 
 	    //exclude the particles at the boundary
             if ((X_grid>2) && (Y_grid>2) && (Z_grid>2) && (X_grid+3<Nx) && (Y_grid+3<Ny) && (Z_grid+3<Nz)){
@@ -626,9 +626,9 @@ int main() {
                 kr4[i][0] = kr1[i][0] + kv3[i][0] * dt;
                 kr4[i][1] = kr1[i][1] + kv3[i][1] * dt;
                 kr4[i][2] = kr1[i][2] + kv3[i][2] * dt;
-                x_tmp[i]  = x[i] + kr3[i][0]*0.5*dt;
-                y_tmp[i]  = y[i] + kr3[i][1]*0.5*dt;
-                z_tmp[i]  = z[i] + kr3[i][2]*0.5*dt;
+                x_tmp[i]  = x[i] + kr3[i][0]*dt;
+                y_tmp[i]  = y[i] + kr3[i][1]*dt;
+                z_tmp[i]  = z[i] + kr3[i][2]*dt;
             }
 	    mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
             FFT(rho,U,R_k);
@@ -643,9 +643,9 @@ int main() {
                 x[i] += (kr1[i][0] + 2.0 * kr2[i][0] + 2.0 * kr3[i][0] + 1.0 * kr4[i][0]) / 6.0 * dt;
                 y[i] += (kr1[i][1] + 2.0 * kr2[i][1] + 2.0 * kr3[i][1] + 1.0 * kr4[i][1]) / 6.0 * dt;
                 z[i] += (kr1[i][2] + 2.0 * kr2[i][2] + 2.0 * kr3[i][2] + 1.0 * kr4[i][2]) / 6.0 * dt;
-                vx[i] += (kv1[i][0] + 2. * kv2[i][0] + 2.0 * kv3[i][0] + 1.0 * kv4[i][0]) / 6.0 * dt;
-                vy[i] += (kv1[i][1] + 2. * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
-                vz[i] += (kv1[i][2] + 2. * kv2[i][2] + 2.0 * kv3[i][2] + 1.0 * kv4[i][2]) / 6.0 * dt;
+                vx[i] += (kv1[i][0] + 2.0 * kv2[i][0] + 2.0 * kv3[i][0] + 1.0 * kv4[i][0]) / 6.0 * dt;
+                vy[i] += (kv1[i][1] + 2.0 * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
+                vz[i] += (kv1[i][2] + 2.0 * kv2[i][2] + 2.0 * kv3[i][2] + 1.0 * kv4[i][2]) / 6.0 * dt;
             }
         }
         
