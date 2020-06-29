@@ -15,14 +15,14 @@ using namespace Array;
 using namespace fftwpp;
 
 //--------------------------------------------------------mode selection----------------------------------------------
-int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
-int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 3;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int mesh_mode = 0;  // 0: NGP ; 1: CIC ; 2: TSC
+int force_mode = 0; // 0: NGP ; 1: CIC ; 2: TSC
+int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
 int n = 2;                                       // # of particles
