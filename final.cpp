@@ -25,11 +25,11 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
 int N = 64;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 10;                                      // # of particles
+int n = 2;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
-double dt = 0.001;                               // time step
+double dt = 0.00001;                               // time step
 double PDx = 0.1, PDy = 0.1, PDz = 0.1;          // size of particle clumps
 double vi = 1.0;                                 // initial velocity weight
 double time_elapsed = 0.0;                       // elapsed time
@@ -325,6 +325,14 @@ int main() {
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
     }
 
+    if(n==2){
+        double v0 = vi*sqrt(G * 0.5*m / 0.6)/2.0;
+        vx[0] = v0; vy[0] = 0; vz[0] = 0;
+        vx[1] = -v0; vy[1] = 0; vz[1] = 0;
+        x[0] = 0.5; y[0] = 0.2; z[0] = 0.5;
+        x[1] = 0.5; y[1] = 0.8; z[1] = 0.5;
+    }
+    
     //initialize rho, U and W
     for (int i = 0; i < Nx; i++) {
         rho[i] = new double * [Ny];
@@ -346,16 +354,16 @@ int main() {
     while (t <= t_end) {
      
         // check conservation
-        double Px = 0, Py = 0, Pz = 0;
-        double X = 0, Y = 0, Z = 0;
-        double M = 0;
-        int n_in = 0;
-        
-        if((int)(t/dt)%50==0){
+        if((int)(t/dt)%200==0){
+            double Px = 0, Py = 0, Pz = 0;
+            double X = 0, Y = 0, Z = 0;
+            double M = 0;
+            int n_in = 0;
+            
             char fname[100], name[100];
             sprintf(fname,"./output/position_%04d", frame);
             sprintf(name,"./output/density_%04d", frame);
-            FILE *position_output = fopen(fname,"w");
+            //FILE *position_output = fopen(fname,"w");
             FILE *density_output = fopen(name,"w");
             
             cout << "================================\n";
@@ -370,9 +378,9 @@ int main() {
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
             
-            for (int i = 0; i < n; i++) fprintf(position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+            //for (int i = 0; i < n; i++) fprintf(position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(rho[i][j][k]!=0) fprintf(density_output, "%d\t%d\t%d\t%e\n", i, j, k, rho[i][j][k]);
-            fclose(position_output);
+            //fclose(position_output);
             fclose(density_output);
             
             frame++;

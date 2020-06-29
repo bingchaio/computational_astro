@@ -38,7 +38,6 @@ void plot_density(){
 
 void anim(){
     hist->Reset();
-    cout << frame << endl;
     
     sprintf(name, "./output/density_%04d", frame);
     if((myfile = fopen(name, "r")) == NULL){
@@ -56,7 +55,7 @@ void anim(){
     hist->SetMaximum(90000);
     hist->SetMinimum(0);
     hist->Draw("box2z");
-    sprintf(time_text, "Density: t = %.2f", t);
+    sprintf(time_text, "Density: frame %d", frame);
     hist->SetTitle(time_text);
     //gPad->SetPhi(phi);
     gPad->Modified();
@@ -66,7 +65,6 @@ void anim(){
     
     fclose(myfile);
     phi+=0.2;
-    t += dt;
-    frame++;
+    frame+=2;
     
 }
