@@ -22,10 +22,10 @@ int OI_mode = 0;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 128;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 3;                                      // # of particles
+int n = 1000;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double t_end = 10.0;                             // ending time
@@ -83,7 +83,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         Z_grid = int( z/ dx);
 
 	//exclude the particles at the boundary
-	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
+	if ((X_grid>=0) && (Y_grid>=0) && (Z_grid>=0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
             for (int i = X_grid; i <= X_grid + 1; i++) {
                 for (int j = Y_grid; j <= Y_grid + 1; j++) {
                     for (int k = Z_grid; k <= Z_grid + 1; k++) {
@@ -119,7 +119,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
         Z_grid = int( z / dx);
 
 	//exclude the particles at the boundary
-	if ((X_grid>=1) && (Y_grid>=1) && (Z_grid>=1) && (X_grid<Nx-1) && (Y_grid<Ny-1) && (Z_grid<Nz-1)){
+	if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
             for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                 if (i == X_grid) fx = 0.75 - pow(x - i * dx, 2) / pow(dx, 2); //calculate the weigting factor by TSC
                 else fx = 0.5 * pow(1.5 - abs(x - i * dx) / dx, 2);
@@ -277,7 +277,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
             Z_grid = int((z[p]) / dx);
 
 	    //exclude the particles at the boundary
-            if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+2<Nx) && (Y_grid+2<Ny) && (Z_grid+2<Nz)){
+            if ((X_grid>0) && (Y_grid>0) && (Z_grid>0) && (X_grid+1<Nx) && (Y_grid+1<Ny) && (Z_grid+1<Nz)){
                 for (int i = X_grid - 1; i <= X_grid + 1; i++) {
                     if (i == X_grid) fx = 0.75 - pow(x[p] - i * dx, 2) / pow(dx, 2); //calculate the weigting factor by TSC
                     else fx = 0.5 * pow(1.5 - abs(x[p] - i * dx) / dx, 2);
@@ -329,7 +329,7 @@ int main() {
         y[i] = Ly * PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
         z[i] = Lz * PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
         double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5);
-        double v0 = 0.5*sqrt(G * m / r0);
+        double v0 = sqrt(G * m / r0);
         vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) / 10.;
