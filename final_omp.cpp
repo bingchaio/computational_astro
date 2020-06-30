@@ -22,10 +22,10 @@ int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 2;                                     // # of grid points
+int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 1000;                                       // # of particles
+int n = 3;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -335,22 +335,12 @@ int main() {
     double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
     double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
     for (int i = 0; i < n; i++) {
-        if(i<n/2){
-            x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
-            y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
-            z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
-            vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-            vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-            vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-        }else{
-            x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
-            y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
-            z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
-            vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-            vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-            vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
-        }
-        
+        x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
+        y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
+        z[i] = PDz * (rand() / (double) RAND_MAX -0.5) + Lz/2;
+        vx[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
+        vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
     
     if(n==2){
@@ -361,10 +351,10 @@ int main() {
         y[1] = 0.5;
         z[1] = 0.5;
         vx[0] = 0.0;
-        vy[0] = sqrt(1.0/0.2)/2;
+        vy[0] = sqrt(1.0/0.2)/sqrt(2);
         vz[0] = 0.0;
         vx[1] = 0.0;
-        vy[1] = -sqrt(1.0/0.2)/2;
+        vy[1] = -sqrt(1.0/0.2)/sqrt(2);
         vz[1] = 0.0;
     }
     
