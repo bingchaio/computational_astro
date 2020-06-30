@@ -25,7 +25,7 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
 int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 100;                                    // # of particles
+int n = 2;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -329,7 +329,7 @@ int main(int argc, char *argv[]) {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    /*
+    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -337,12 +337,12 @@ int main(int argc, char *argv[]) {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2);
+    vy[0] = 0.5*sqrt(1.0/0.2);
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2);
+    vy[1] = -0.5*sqrt(1.0/0.2);
     vz[1] = 0.0;
-    */
+    
 
     printf("no parallel N = %d mesh mode = %d orbit mode = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,dt,PDx,v0);
     
@@ -369,9 +369,12 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank( MPI_COMM_WORLD, &MyRank );
     MPI_Comm_size( MPI_COMM_WORLD, &NRank );
     const int TargetRank = (MyRank+1)%2;
-    const int x_Tag        = 0;
-    const int y_Tag        = 1;
-    const int z_Tag        = 2;
+    const int x1_Tag        = 0;
+    const int x2_Tag        = 1;
+    const int y1_Tag        = 2;
+    const int y2_Tag        = 3;
+    const int z1_Tag        = 4;
+    const int z2_Tag        = 5;
     //printf( "Hello World on rank %d/%d\n", MyRank, NRank );
     while (t <= t_end) {
      
@@ -388,7 +391,7 @@ int main(int argc, char *argv[]) {
             //FILE *position_output = fopen(fname,"w");
             FILE *density_output = fopen(name,"w");
             
-            cout << "================================\n";
+            cout << "==========================  >///< =============================\n";
             for(int p = 0 ; p<n ; p++){
                 Px += m*vx[p];
                 Py += m*vy[p];
@@ -421,23 +424,26 @@ int main(int argc, char *argv[]) {
                 z[i] += vz[i] * 0.5 * dt;
 		}
             }
+	    int MPI_Barrier( MPI_Comm comm );
+	    //printf("Hello\n");
 	    // rank 0: send first and then receive using blocking transfer
 	    if ( MyRank == 0 ) {
-		MPI_Send( &x, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-		MPI_Recv( &x_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-		MPI_Send( &y, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &y_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-		MPI_Send( &z, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &z_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+		MPI_Send( &x, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD );
+		MPI_Recv( &x_cp, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+		MPI_Send( &y, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &y_cp, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+		MPI_Send( &z, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &z_cp, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
 	    }
+	    //printf("Hey\n");
 	    // rank 1: receive first and then send using blocking transfer 
-	    else {
-		 MPI_Recv( &x_cp, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-		 MPI_Send( &x, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD );
-		 MPI_Recv( &y_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &y, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-		 MPI_Recv( &z_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &z, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
+	    if ( MyRank == 1 ) {
+		 MPI_Recv( &x_cp, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+		 MPI_Send( &x, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD );
+		 MPI_Recv( &y_cp, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &y, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD );
+		 MPI_Recv( &z_cp, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &z, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD );
 	    }
 	    for (int i = 0; i < n; i++) {
                 if (i%NRank != MyRank){
@@ -446,6 +452,7 @@ int main(int argc, char *argv[]) {
                 z[i] = z_cp[i];
                 }
             }
+	    int MPI_Barrier( MPI_Comm comm );
             //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
             mesh(rho, x, y, z, mesh_mode);
 	    
@@ -460,23 +467,24 @@ int main(int argc, char *argv[]) {
                 vz[i] += F_z / m * dt;
 		}
             }
+	    int MPI_Barrier( MPI_Comm comm );
 	    // rank 0: send first and then receive using blocking transfer
             if ( MyRank == 0 ) {
-                MPI_Send( &vx, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &vx_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                MPI_Send( &vy, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &vy_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                MPI_Send( &vz, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &vz_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &vx, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &vx_cp, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &vy, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &vy_cp, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &vz, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &vz_cp, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
             }
             // rank 1: receive first and then send using blocking transfer 
-            else {
-                 MPI_Recv( &vx_cp, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &vx, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD );
-                 MPI_Recv( &vy_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &vy, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                 MPI_Recv( &vz_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &vz, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
+            if ( MyRank == 1 ) {
+                 MPI_Recv( &vx_cp, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &vx, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD );
+                 MPI_Recv( &vy_cp, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &vy, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD );
+                 MPI_Recv( &vz_cp, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &vz, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD );
             }
             for (int i = 0; i < n; i++) {
                 if (i%NRank != MyRank){
@@ -485,7 +493,7 @@ int main(int argc, char *argv[]) {
                 vz[i] = vz_cp[i];
                 }
             }
-
+	    int MPI_Barrier( MPI_Comm comm );
             //drift: update position by 0.5*dt
             for (int i = 0; i < n; i++) {
 		if (i%NRank == MyRank){
@@ -496,21 +504,21 @@ int main(int argc, char *argv[]) {
             }
 
 	    if ( MyRank == 0 ) {
-                MPI_Send( &x, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &x_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                MPI_Send( &y, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &y_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                MPI_Send( &z, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
-                MPI_Recv( &z_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &x, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &x_cp, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &y, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &y_cp, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                MPI_Send( &z, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD );
+                MPI_Recv( &z_cp, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
             }
             // rank 1: receive first and then send using blocking transfer
-            else {
-                 MPI_Recv( &x_cp, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &x, n, MPI_INT, TargetRank, x_Tag, MPI_COMM_WORLD );
-                 MPI_Recv( &y_cp, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &y, n, MPI_INT, TargetRank, y_Tag, MPI_COMM_WORLD );
-                 MPI_Recv( &z_cp, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
-                 MPI_Send( &z, n, MPI_INT, TargetRank, z_Tag, MPI_COMM_WORLD );
+            if ( MyRank == 1 ) {
+                 MPI_Recv( &x_cp, n, MPI_DOUBLE, TargetRank, x1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &x, n, MPI_DOUBLE, TargetRank, x2_Tag, MPI_COMM_WORLD );
+                 MPI_Recv( &y_cp, n, MPI_DOUBLE, TargetRank, y1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &y, n, MPI_DOUBLE, TargetRank, y2_Tag, MPI_COMM_WORLD );
+                 MPI_Recv( &z_cp, n, MPI_DOUBLE, TargetRank, z1_Tag, MPI_COMM_WORLD,MPI_STATUSES_IGNORE );
+                 MPI_Send( &z, n, MPI_DOUBLE, TargetRank, z2_Tag, MPI_COMM_WORLD );
             }
             for (int i = 0; i < n; i++) {
                 if (i%NRank != MyRank){
