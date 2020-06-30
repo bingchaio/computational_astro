@@ -22,10 +22,10 @@ int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symple
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 1000;                                    // # of particles
+int n = 2;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -326,6 +326,7 @@ int main() {
     double * vz = new double[n];
     double *** rho = new double ** [Nx]; // mass density
     double *** U = new double ** [Nx];   // potential
+    int frame = 0;
     
     srand(time(NULL));
     /* Initialization */
@@ -340,7 +341,7 @@ int main() {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    /*
+    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -348,12 +349,12 @@ int main() {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2);
+    vy[0] = sqrt(1.0/0.2)/2;
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2);
+    vy[1] = -sqrt(1.0/0.2)/2;
     vz[1] = 0.0;
-    */
+    
 
     printf("isolated N = %d mesh mode = %d orbit mode = %d NThread = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,NThread,dt,PDx,v0);
 
@@ -395,20 +396,24 @@ int main() {
     fft3d Forward(2*Nx, 2*Ny, 2*Nz, -1, R_x, R_k);
     Forward.fft0(R_x, R_k);
 
+    mesh(rho, x, y, z, mesh_mode);
+    
     while (t <= t_end) {
 
         // check conservation
-        double Px = 0, Py = 0, Pz = 0;
-        double X = 0, Y = 0, Z = 0;
-        double M = 0;
-        int n_in = 0;
-	
-        if((int)(t/dt)%(10)==0){
-	    FILE *den_output;
-            char fname[10];
-            int t_out = (t/dt);
-            sprintf(fname,"density_%04d", (t_out));
-            den_output = fopen(fname,"w");
+        if((int)(t/dt)%10==0){
+            double Px = 0, Py = 0, Pz = 0;
+            double X = 0, Y = 0, Z = 0;
+            double M = 0;
+            double E = Get_Energy(x,y,z,vx,vy,vz);
+            int n_in = 0;
+            
+            char fname[100], name[100];
+            sprintf(fname,"./output/position_%04d", frame);
+            sprintf(name,"./output/density_%04d", frame);
+            //FILE *position_output = fopen(fname,"w");
+            FILE *density_output = fopen(name,"w");
+            
             cout << "================================\n";
             for(int p = 0 ; p<n ; p++){
                 Px += m*vx[p];
@@ -416,15 +421,19 @@ int main() {
                 Pz += m*vz[p];
                 if(x[p]>0&&x[p]<Lx&&y[p]>0&&y[p]<Ly&&z[p]>0&&z[p]<Lz) n_in++;
             }
-	    mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,R_k);
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
             printf("t = %.3f\n", t);
             printf("Px = %.3f \t Py = %.3f \t Pz = %.3f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
-            printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, Get_Energy(x,y,z,vx,vy,vz),time_elapsed);
-	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
-            fclose(den_output);
-        }    
+            printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M, E,time_elapsed);
+            
+            fprintf(density_output, "%.4f\t%e\t%d\n", t, E, n_in);
+            //for (int i = 0; i < n; i++) fprintf(position_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
+            for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) if(rho[i][j][k]!=0) fprintf(density_output, "%d\t%d\t%d\t%e\n", i, j, k, rho[i][j][k]);
+            //fclose(position_output);
+            fclose(density_output);
+            
+            frame++;
+        }
      
         //DKD
         //Starting to calculate force on partilces
