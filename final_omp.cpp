@@ -25,7 +25,7 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
 int N = 128;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 2;                                       // # of particles
+int n = 3;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -356,6 +356,24 @@ int main() {
         vx[1] = 0.0;
         vy[1] = -sqrt(1.0/0.2)/sqrt(2);
         vz[1] = 0.0;
+    }
+    if(n==3){
+        x[0] = 0.6;
+        y[0] = 0.5;
+        z[0] = 0.5;
+        x[1] = 0.4;
+        y[1] = 0.5;
+        z[1] = 0.5;
+        x[2] = 0.7;
+        y[2] = 0.3;
+        z[2] = 0.5;
+        vx[0] = 0.0;
+        vy[0] = 0.5*sqrt(1.0/0.2);
+        vz[0] = 0.0;
+        vx[1] = 0.0;
+        vy[1] = -0.5*sqrt(1.0/0.2);
+        vz[1] = 0.0;
+        vx[2] = 0.; vy[2] = 0; vz[2] = 0;
     }
     
 
