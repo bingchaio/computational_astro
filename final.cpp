@@ -17,27 +17,27 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 3;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 128;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
-double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 1000;                                    // # of particles
+double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
+int n = 2;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
 double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
-double t_end = dt*800.0;                         // ending time                             
+double t_end = dt*900.0;                        // ending time                             
 double vmax = 1.0;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
-array3<Complex> phi_k(Nx,Ny,Nz,sizeof(Complex)); // phi_k for fft
-array3<Complex> rho_k(Nx,Ny,Nz,sizeof(Complex)); // rho_k for fft
-array3<Complex> rho_x(Nx,Ny,Nz,sizeof(Complex)); // rho_x for fft
-array3<Complex> phi_x(Nx,Ny,Nz,sizeof(Complex)); // phi_x for fft
+array3<double>  rho_x(Nx,Ny,Nz,sizeof(Complex)); // rho_x for fft
+array3<double>  phi_x(Nx,Ny,Nz,sizeof(Complex)); // phi_x for fft
+array3<Complex> phi_k(Nx,Ny,Nz/2+1,sizeof(Complex)); // phi_k for fft
+array3<Complex> rho_k(Nx,Ny,Nz/2+1,sizeof(Complex)); // rho_k for fft
 
 //----------------------------------------------------------functions------------------------------------------------
 //Particle Force Interpolation Function
@@ -156,50 +156,46 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
-    //fftw::maxthreads = 1;
+    //fftw::maxthreads = 4;
     
-    gettimeofday(&start, NULL);
-
-    fft3d Forward(Nx, Ny, Nz, -1, rho_x, rho_k);
-    fft3d Backward(Nx, Ny, Nz, 1, phi_k, phi_x);
+    rcfft3d Forward(Nx, Ny, Nz, rho_x, rho_k);
+    crfft3d Backward(Nx, Ny, Nz, phi_k, phi_x);
 
     for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            for (int k = 0; k < Nz; k++) {
-                rho_x(i,j,k) = rho[i][j][k];
+       	    for (int j = 0; j < Ny; j++) {
+            	for (int k = 0; k < Nz; k++) {
+                    rho_x(i,j,k) = rho[i][j][k];
             }
         }
     }
-    
     // fourier transform
-    Forward.fft0(rho_x, rho_k);
-    
+    gettimeofday(&start, NULL);
+    Forward.fft(rho_x, rho_k);
+    gettimeofday(&ending, NULL);
+    double delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
+    time_elapsed += 1.0*(delta);	
     // calculate the potential in k space
     
     for(int i = 0 ; i<Nx ; i++){
-		for(int j = 0 ; j<Ny ; j++){
-			for(int k = 0 ; k<Nz ; k++){
+	  for(int j = 0 ; j<Ny ; j++){	
+		for(int k = 0 ; k<Nz/2+1 ; k++){
 				phi_k(i,j,k) = W[i][j][k]*rho_k(i,j,k);	
-			}
 		}
+	  }
     }
-
-    phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
     
+    phi_k(0,0,0) = 0.0; // set the zero mode of potential in k space to zero
     // inverse fourier transform
-    Backward.fft0Normalized(phi_k, phi_x);
+    Backward.fftNormalized(phi_k, phi_x);
     
     for(int i = 0 ; i<Nx ; i++){
         for(int j = 0 ; j<Ny ; j++){
             for(int k = 0 ; k<Nz ; k++){
-                U[i][j][k] = real(phi_x(i,j,k));
+                U[i][j][k] = phi_x(i,j,k);
             }
         }
     }
-
-    gettimeofday(&ending, NULL); 
-    float delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
-    time_elapsed += 1.0*(delta);
+    
 }
 
 //Particle Mesh function
@@ -308,7 +304,9 @@ int main() {
     double *** rho = new double ** [Nx]; // mass density
     double *** U = new double ** [Nx]; // potential
     double *** W = new double ** [Nx]; // Poisson solver weighting matrix
-    
+    double * F_x = new double[n];        // forces of the particles
+    double * F_y = new double[n];
+    double * F_z = new double[n];
     
     srand(time(NULL));
     /* Initialization */
@@ -323,7 +321,7 @@ int main() {
         vy[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
         vz[i] = v0 * ( rand() / (double) RAND_MAX - 0.5) *2.0;
     }
-    /*
+    
     x[0] = 0.6;
     y[0] = 0.5;
     z[0] = 0.5;
@@ -331,13 +329,12 @@ int main() {
     y[1] = 0.5;
     z[1] = 0.5;
     vx[0] = 0.0;
-    vy[0] = sqrt(1.0/0.2*0.5);
+    vy[0] = 0.5*sqrt(1.0/0.2);
     vz[0] = 0.0;
     vx[1] = 0.0;
-    vy[1] = -sqrt(1.0/0.2*0.5);
+    vy[1] = -0.5*sqrt(1.0/0.2);
     vz[1] = 0.0;
-    */
-
+    
     printf("no parallel N = %d mesh mode = %d orbit mode = %d dt = %.3e\n particle size = %.2f vmax = %.3f\n",N,mesh_mode,OI_mode,dt,PDx,v0);
     
     //initialize rho, U and W
@@ -356,6 +353,17 @@ int main() {
         }
     }
     
+    if (OI_mode == 1){
+	    mesh(rho, x, y, z, mesh_mode);
+            FFT(rho,U,W);
+            for (int i = 0; i < n; i++) {
+               	    F_x[i] = 0.0; 
+		    F_y[i] = 0.0; 
+		    F_z[i] = 0.0;
+                    Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+            }
+    }
+
     while (t <= t_end) {
      
         // check conservation
@@ -365,6 +373,7 @@ int main() {
         int n_in = 0;
 	
         if((int)(t/dt)%100==0){
+	    
 	    FILE *den_output;
             char fname[100];
             int t_out = (t/dt);
@@ -390,62 +399,67 @@ int main() {
         //DKD
         //Starting to calculate force on partilces
         if (OI_mode == 0) {
+
             //drift: update position by 0.5*dt
 	    
             for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * 0.5 * dt;
-                y[i] += vy[i] * 0.5 * dt;
-                z[i] += vz[i] * 0.5 * dt;
+                  x[i] += vx[i] * 0.5 * dt;
+                  y[i] += vy[i] * 0.5 * dt;
+                  z[i] += vz[i] * 0.5 * dt;
             }
             //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
 	    
-            mesh(rho, x, y, z, mesh_mode);
-	    
+            mesh(rho, x, y, z, mesh_mode);	     
             FFT(rho,U,W);
 	    
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * dt;
-                vy[i] += F_y / m * dt;
-                vz[i] += F_z / m * dt;
-            }
-            //drift: update position by 0.5*dt
-            for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * 0.5 * dt;
-                y[i] += vy[i] * 0.5 * dt;
-                z[i] += vz[i] * 0.5 * dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  vx[i] += F_x[i] / m * dt;
+                  vy[i] += F_y[i] / m * dt;
+                  vz[i] += F_z[i] / m * dt;
             }
 	    
+            //drift: update position by 0.5*dt
+            for (int i = 0; i < n; i++) {
+                  x[i] += vx[i] * 0.5 * dt;
+                  y[i] += vy[i] * 0.5 * dt;
+                  z[i] += vz[i] * 0.5 * dt;
+            }
         }
         
         //KDK
         else if (OI_mode == 1) {
+
             //kick
-            mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
+            
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * 0.5 * dt;
-                vy[i] += F_y / m * 0.5 * dt;
-                vz[i] += F_z / m * 0.5 * dt;
+                  vx[i] += F_x[i] / m * 0.5 * dt;
+                  vy[i] += F_y[i] / m * 0.5 * dt;
+                  vz[i] += F_z[i] / m * 0.5 * dt;
             }
+
             //drift: update position by dt
             for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * dt;
-                y[i] += vy[i] * dt;
-                z[i] += vz[i] * dt;
+                  x[i] += vx[i] * dt;
+                  y[i] += vy[i] * dt;
+                  z[i] += vz[i] * dt;
             }
+
             //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
             mesh(rho, x, y, z, mesh_mode);
             FFT(rho,U,W);
+
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * 0.5 * dt;
-                vy[i] += F_y / m * 0.5 * dt;
-                vz[i] += F_z / m * 0.5 * dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  vx[i] += F_x[i] / m * 0.5 * dt;
+                  vy[i] += F_y[i] / m * 0.5 * dt;
+                  vz[i] += F_z[i] / m * 0.5 * dt;
             }
         }
         
@@ -463,57 +477,66 @@ int main() {
             double d3 = w1;
             
             for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * c1 * dt;
-                y[i] += vy[i] * c1 * dt;
-                z[i] += vz[i] * c1 * dt;
+                  x[i] += vx[i] * c1 * dt;
+                  y[i] += vy[i] * c1 * dt;
+                  z[i] += vz[i] * c1 * dt;
             }
             
             mesh(rho, x, y, z, mesh_mode);
             FFT(rho,U,W);
+
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * d1 * dt;
-                vy[i] += F_y / m * d1 * dt;
-                vz[i] += F_z / m * d1 * dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  vx[i] += F_x[i] / m * d1 * dt;
+                  vy[i] += F_y[i] / m * d1 * dt;
+                  vz[i] += F_z[i] / m * d1 * dt;
             }
             
             for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * c2 * dt;
-                y[i] += vy[i] * c2 * dt;
-                z[i] += vz[i] * c2 * dt;
-            }
-            
-            mesh(rho, x, y, z, mesh_mode);
-            FFT(rho,U,W);
-            for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * d2 * dt;
-                vy[i] += F_y / m * d2 * dt;
-                vz[i] += F_z / m * d2 * dt;
-            }
-            
-            for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * c3 * dt;
-                y[i] += vy[i] * c3 * dt;
-                z[i] += vz[i] * c3 * dt;
+                  x[i] += vx[i] * c2 * dt;
+                  y[i] += vy[i] * c2 * dt;
+                  z[i] += vz[i] * c2 * dt;
             }
             
             mesh(rho, x, y, z, mesh_mode);
             FFT(rho,U,W);
+
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                vx[i] += F_x / m * d3 * dt;
-                vy[i] += F_y / m * d3 * dt;
-                vz[i] += F_z / m * d3 * dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  vx[i] += F_x[i] / m * d2 * dt;
+                  vy[i] += F_y[i] / m * d2 * dt;
+                  vz[i] += F_z[i] / m * d2 * dt;
             }
             
             for (int i = 0; i < n; i++) {
-                x[i] += vx[i] * c4 * dt;
-                y[i] += vy[i] * c4 * dt;
-                z[i] += vz[i] * c4 * dt;
+                  x[i] += vx[i] * c3 * dt;
+                  y[i] += vy[i] * c3 * dt;
+                  z[i] += vz[i] * c3 * dt;
+            }
+            
+            mesh(rho, x, y, z, mesh_mode);
+            FFT(rho,U,W);
+
+            for (int i = 0; i < n; i++) {
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  vx[i] += F_x[i] / m * d3 * dt;
+                  vy[i] += F_y[i] / m * d3 * dt;
+                  vz[i] += F_z[i] / m * d3 * dt;
+            }
+            
+            for (int i = 0; i < n; i++) {
+                  x[i] += vx[i] * c4 * dt;
+                  y[i] += vy[i] * c4 * dt;
+                  z[i] += vz[i] * c4 * dt;
             }
         }
         
@@ -531,82 +554,90 @@ int main() {
             double * y_tmp = new double[n];
             double * z_tmp = new double[n];
             for (int i = 0; i < n; i++) {
-                kr1[i] = new double[3];
-                kv1[i] = new double[3];
-                kr2[i] = new double[3];
-                kv2[i] = new double[3];
-                kr3[i] = new double[3];
-                kv3[i] = new double[3];
-                kr4[i] = new double[3];
-                kv4[i] = new double[3];
-                x_tmp[i] = x[i];
-                y_tmp[i] = y[i];
-                z_tmp[i] = z[i];
+                  kr1[i] = new double[3];
+                  kv1[i] = new double[3];
+                  kr2[i] = new double[3];
+                  kv2[i] = new double[3];
+                  kr3[i] = new double[3];
+                  kv3[i] = new double[3];
+                  kr4[i] = new double[3];
+                  kv4[i] = new double[3];
+                  x_tmp[i] = x[i];
+                  y_tmp[i] = y[i];
+                  z_tmp[i] = z[i];
             }
             mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
             FFT(rho,U,W);
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x[i], y[i], z[i], F_x, F_y, F_z, force_mode);
-                kr1[i][0] = vx[i];
-                kr1[i][1] = vy[i];
-                kr1[i][2] = vz[i];
-                kv1[i][0] = F_x/m;
-                kv1[i][1] = F_y/m;
-                kv1[i][2] = F_z/m;
-                kr2[i][0] = kr1[i][0] + kv1[i][0] * 0.5 * dt;
-                kr2[i][1] = kr1[i][1] + kv1[i][1] * 0.5 * dt;
-                kr2[i][2] = kr1[i][2] + kv1[i][2] * 0.5 * dt;
-                x_tmp[i] += kr1[i][0]*0.5*dt;
-                y_tmp[i] += kr1[i][1]*0.5*dt;
-                z_tmp[i] += kr1[i][2]*0.5*dt;
+               	  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x[i], y[i], z[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  kr1[i][0] = vx[i];
+                  kr1[i][1] = vy[i];
+                  kr1[i][2] = vz[i];
+                  kv1[i][0] = F_x[i]/m;
+                  kv1[i][1] = F_y[i]/m;
+               	  kv1[i][2] = F_z[i]/m;
+                  kr2[i][0] = kr1[i][0] + kv1[i][0] * 0.5 * dt;
+                  kr2[i][1] = kr1[i][1] + kv1[i][1] * 0.5 * dt;
+                  kr2[i][2] = kr1[i][2] + kv1[i][2] * 0.5 * dt;
+                  x_tmp[i] += kr1[i][0]*0.5*dt;
+                  y_tmp[i] += kr1[i][1]*0.5*dt;
+                  z_tmp[i] += kr1[i][2]*0.5*dt;
             }
             mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
             FFT(rho,U,W);
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
-                kv2[i][0] = F_x/m;
-                kv2[i][1] = F_y/m;
-                kv2[i][2] = F_z/m;
-                kr3[i][0] = kr1[i][0] + kv2[i][0] * 0.5 * dt;
-                kr3[i][1] = kr1[i][1] + kv2[i][1] * 0.5 * dt;
-                kr3[i][2] = kr1[i][2] + kv2[i][2] * 0.5 * dt;
-                x_tmp[i]  = x[i] + kr2[i][0]*0.5*dt;
-                y_tmp[i]  = y[i] + kr2[i][1]*0.5*dt;
-                z_tmp[i]  = z[i] + kr2[i][2]*0.5*dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  kv2[i][0] = F_x[i]/m;
+                  kv2[i][1] = F_y[i]/m;
+                  kv2[i][2] = F_z[i]/m;
+                  kr3[i][0] = kr1[i][0] + kv2[i][0] * 0.5 * dt;
+                  kr3[i][1] = kr1[i][1] + kv2[i][1] * 0.5 * dt;
+                  kr3[i][2] = kr1[i][2] + kv2[i][2] * 0.5 * dt;
+                  x_tmp[i]  = x[i] + kr2[i][0]*0.5*dt;
+                  y_tmp[i]  = y[i] + kr2[i][1]*0.5*dt;
+                  z_tmp[i]  = z[i] + kr2[i][2]*0.5*dt;
             }
 	    mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
             FFT(rho,U,W);
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
-                kv3[i][0] = F_x/m;
-                kv3[i][1] = F_y/m;
-                kv3[i][2] = F_z/m;
-                kr4[i][0] = kr1[i][0] + kv3[i][0] * dt;
-                kr4[i][1] = kr1[i][1] + kv3[i][1] * dt;
-                kr4[i][2] = kr1[i][2] + kv3[i][2] * dt;
-                x_tmp[i]  = x[i] + kr3[i][0]*0.5*dt;
-                y_tmp[i]  = y[i] + kr3[i][1]*0.5*dt;
-                z_tmp[i]  = z[i] + kr3[i][2]*0.5*dt;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  kv3[i][0] = F_x[i]/m;
+                  kv3[i][1] = F_y[i]/m;
+                  kv3[i][2] = F_z[i]/m;
+                  kr4[i][0] = kr1[i][0] + kv3[i][0] * dt;
+                  kr4[i][1] = kr1[i][1] + kv3[i][1] * dt;
+                  kr4[i][2] = kr1[i][2] + kv3[i][2] * dt;
+                  x_tmp[i]  = x[i] + kr3[i][0]*dt;
+                  y_tmp[i]  = y[i] + kr3[i][1]*dt;
+                  z_tmp[i]  = z[i] + kr3[i][2]*dt;
             }
             mesh(rho, x_tmp, y_tmp, z_tmp, mesh_mode);
             FFT(rho,U,W);
             for (int i = 0; i < n; i++) {
-                double F_x=0.0, F_y=0.0, F_z=0.0;
-                Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x, F_y, F_z, force_mode);
-                kv4[i][0] = F_x/m;
-                kv4[i][1] = F_y/m;
-                kv4[i][2] = F_z/m;
+                  F_x[i] = 0.0; 
+		  F_y[i] = 0.0; 
+		  F_z[i] = 0.0;
+                  Get_Force_of_Particle(U, x_tmp[i], y_tmp[i], z_tmp[i], F_x[i], F_y[i], F_z[i], force_mode);
+                  kv4[i][0] = F_x[i]/m;
+                  kv4[i][1] = F_y[i]/m;
+                  kv4[i][2] = F_z[i]/m;
             }
             for (int i = 0; i < n; i++) {
-                x[i] += (kr1[i][0] + 2.0 * kr2[i][0] + 2.0 * kr3[i][0] + 1.0 * kr4[i][0]) / 6.0 * dt;
-                y[i] += (kr1[i][1] + 2.0 * kr2[i][1] + 2.0 * kr3[i][1] + 1.0 * kr4[i][1]) / 6.0 * dt;
-                z[i] += (kr1[i][2] + 2.0 * kr2[i][2] + 2.0 * kr3[i][2] + 1.0 * kr4[i][2]) / 6.0 * dt;
-                vx[i] += (kv1[i][0] + 2. * kv2[i][0] + 2.0 * kv3[i][0] + 1.0 * kv4[i][0]) / 6.0 * dt;
-                vy[i] += (kv1[i][1] + 2. * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
-                vz[i] += (kv1[i][2] + 2. * kv2[i][2] + 2.0 * kv3[i][2] + 1.0 * kv4[i][2]) / 6.0 * dt;
+                  x[i] += (kr1[i][0] + 2.0 * kr2[i][0] + 2.0 * kr3[i][0] + 1.0 * kr4[i][0]) / 6.0 * dt;
+                  y[i] += (kr1[i][1] + 2.0 * kr2[i][1] + 2.0 * kr3[i][1] + 1.0 * kr4[i][1]) / 6.0 * dt;
+                  z[i] += (kr1[i][2] + 2.0 * kr2[i][2] + 2.0 * kr3[i][2] + 1.0 * kr4[i][2]) / 6.0 * dt;
+                  vx[i] += (kv1[i][0] + 2.0 * kv2[i][0] + 2.0 * kv3[i][0] + 1.0 * kv4[i][0]) / 6.0 * dt;
+                  vy[i] += (kv1[i][1] + 2.0 * kv2[i][1] + 2.0 * kv3[i][1] + 1.0 * kv4[i][1]) / 6.0 * dt;
+                  vz[i] += (kv1[i][2] + 2.0 * kv2[i][2] + 2.0 * kv3[i][2] + 1.0 * kv4[i][2]) / 6.0 * dt;
             }
         }
         
