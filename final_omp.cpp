@@ -17,21 +17,21 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 1;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
 double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
-int N = 128;                                     // # of grid points
+int N = 128;                                      // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / Nx, dy = Ly / Ny, dz = Lz / Nz; // spatial resolution
-int n = 1000;                                       // # of particles
+int n = 2;                                       // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
 double dt = 0.1*sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))/sqrt(n*G*m/sqrt(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2))); //time steps
 double t_end = dt*900.0;                         // ending time                             
-double vmax = 1.0;                               // initial maximal velocity weight
+double vmax = 0.01;                               // initial maximal velocity weight
 double time_elapsed = 0.0;                       // elapsed time
 struct timeval start, ending;                    // starting and ending time
 const int NThread = 4;                           // number of threads
@@ -156,9 +156,7 @@ void Get_Force_of_Particle(double *** U, double x, double y, double z, double & 
 
 //Poisson Solver (FFT)
 void FFT(double ***rho,double ***U,double ***W){
-    //fftw::maxthreads = get_max_threads();
-
-    gettimeofday(&start, NULL);
+    //fftw::maxthreads = get_max_threads();   
 
     rcfft3d Forward(Nx, Ny, Nz, rho_x, rho_k);
     crfft3d Backward(Nx, Ny, Nz, phi_k, phi_x);
@@ -198,15 +196,12 @@ void FFT(double ***rho,double ***U,double ***W){
             	}
             }
     	}
-
-        gettimeofday(&ending, NULL);
-    	double delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
-   	time_elapsed += 1.0*(delta);
+    
 }
 
 //Particle Mesh function
 void mesh(double ***rho, double *x, double *y, double *z, int mode) {
-
+    
     int X_grid, Y_grid, Z_grid; //grid positions of particles
     //initialize rho
     for (int i = 0; i < Nx; i++) {
@@ -216,7 +211,7 @@ void mesh(double ***rho, double *x, double *y, double *z, int mode) {
             }
         }
     }
-
+   
     if (mode == 0) {
         for (int p = 0; p < n; p++) {
 
@@ -316,7 +311,7 @@ int main() {
     /* Initialization */
     //Random distribution
     double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
-    double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
+    double v0 = vmax*sqrt(2* G * n * m / r0 );                    //Virial speed
     for (int i = 0; i < n; i++) {
         x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
         y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
@@ -393,7 +388,7 @@ int main() {
             mesh(rho, x, y, z, mesh_mode);
             FFT(rho,U,W);
             for(int i = 0 ; i<Nx ; i++) for(int j = 0 ; j<Ny ; j++) for(int k = 0 ; k<Nz ; k++) M += rho[i][j][k]*dx*dy*dz;
-            printf("t = %.3f\n", t);
+	    printf("t = %.3f\n", t);
             printf("Px = %.12f \t Py = %.12f \t Pz = %.12f\tphi(0.5,0.5,0.5) = %.3f\n", Px, Py, Pz, U[Nx/2][Ny/2][Nz/2]);
             printf("n_in = %d\tM = %.3f\tE = %.3f\tt=%.6f\n", n_in, M,Get_Energy(x,y,z,vx,vy,vz) ,time_elapsed);
 	    for (int i = 0; i < n; i++) fprintf (den_output, "%g  %g  %g   \n",x[i], y[i], z[i] );
@@ -414,9 +409,10 @@ int main() {
 
             //kick: calculate a(t+0.5*dt) and use that to update velocity by dt
 	    
-            mesh(rho, x, y, z, mesh_mode);	    
+            mesh(rho, x, y, z, mesh_mode);
+	    	    	    
             FFT(rho,U,W);
-
+	    gettimeofday(&start, NULL);
 	    omp_set_num_threads( NThread );
     	    #  pragma omp parallel for
             for (int i = 0; i < n; i++) {
@@ -428,6 +424,9 @@ int main() {
                   vy[i] += F_y[i] / m * dt;
                   vz[i] += F_z[i] / m * dt;
             }
+	    gettimeofday(&ending, NULL);
+    	    double delta = ((ending.tv_sec  - start.tv_sec) * 1000000u + ending.tv_usec - start.tv_usec) / 1.e6;
+    	    time_elapsed += 1.0*(delta);
 
             //drift: update position by 0.5*dt
             for (int i = 0; i < n; i++) {

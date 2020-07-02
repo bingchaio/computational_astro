@@ -17,7 +17,7 @@ using namespace fftwpp;
 //--------------------------------------------------------mode selection----------------------------------------------
 int mesh_mode = 2;  // 0: NGP ; 1: CIC ; 2: TSC
 int force_mode = 2; // 0: NGP ; 1: CIC ; 2: TSC
-int OI_mode = 2;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
+int OI_mode = 1;    //Orbit integration mode. 0: DKD 1:KDK 2:fourth-order symplectic integrator 3:RK4  4:Hermite
 
 //-----------------------------------------------------------constants-------------------------------------------------
 double G = 1.0;                                  // gravitational constant
@@ -25,7 +25,7 @@ double Lx = 1.0, Ly = 1.0, Lz = 1.0;             // domain size of 3D box
 int N = 64;                                     // # of grid points
 int Nx = N, Ny = N, Nz = N;
 double dx = Lx / (Nx-1), dy = Ly / (Ny-1), dz = Lz / (Nz-1); // spatial resolution
-int n = 1000;                                    // # of particles
+int n = 2;                                    // # of particles
 double m = 1.0;                                  // particle mass
 double t = 0.0;                                  // time
 double PDx = 0.2, PDy = 0.2, PDz = 0.2;          // size of particle clumps
@@ -319,7 +319,7 @@ int main() {
     /* Initialization */
     //Random distribution
     double r0 = pow(pow(PDx, 2) + pow(PDy, 2) + pow(PDz, 2),0.5); //mean distance
-    double v0 = vmax*sqrt(G * m / r0 / 2);                        //Virial speed
+    double v0 = vmax*sqrt(2* G * n * m / r0 );                    //Virial speed
     for (int i = 0; i < n; i++) {
         x[i] = PDx * (rand() / (double) RAND_MAX -0.5) + Lx/2;
         y[i] = PDy * (rand() / (double) RAND_MAX -0.5) + Ly/2;
